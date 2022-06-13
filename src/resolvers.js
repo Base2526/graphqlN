@@ -490,51 +490,44 @@ export default {
 
     // Comment 
     async Comment(root, {
-      _id
+      postId
     }) {
-
-      let data = await Comment.findById(_id);
-      return {
-        status:true,
-        data
-      }
-    },
-    async Comments(root, {
-      page,
-      perPage, 
-      sortField,
-      sortOrder, 
-      filter
-    }) {
-
       let start = Date.now()
 
-      console.log("Comments: page : ", page,
-                  ", perPage : ", perPage, 
-                  ", sortField : ", sortField,
-                  ", sortOrder : ", sortOrder, 
-                  ", filter : ", JSON.parse(JSON.stringify(filter)),
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
-
-      // let data = await Comment.find();
-
-      // let data = await User.find();
-      let data = await  Comment.find({}).limit(perPage).skip(page).sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
-
-      let total = (await Comment.find({}).sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      console.log("total  ", total)
-
+      let data = await Comment.find({postId: postId});
       return {
         status:true,
         data,
-        total,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
         } seconds`
       }
     },
+    // async Comments(root, {
+    //   postId
+    // }) {
+
+    //   let start = Date.now()
+
+    //   console.log("Comments, postId : ", postId
+    //               `Time to execute = ${
+    //                 (Date.now() - start) / 1000
+    //               } seconds` )
+
+    //   let data = await  Comment.find({postId: postId});
+
+    //   let total = await  Comment.find({postId: postId});
+    //   console.log("total  ", total)
+
+    //   return {
+    //     status:true,
+    //     data,
+    //     total,
+    //     executionTime: `Time to execute = ${
+    //       (Date.now() - start) / 1000
+    //     } seconds`
+    //   }
+    // },
     async getManyReferenceComment(root, {
       postId,
       page,
@@ -943,9 +936,15 @@ export default {
     async createComment(root, {
       input
     }) {
-      console.log("createComment :",JSON.parse(JSON.stringify(input)))
+      // console.log("createComment :", input.postId)
 
-      return await Comment.create(JSON.parse(JSON.stringify(input)));
+      return await Comment.create(input);
+
+      // return await Comment.findOneAndUpdate({
+      //   postId: input.postId
+      // }, input, {
+      //   new: true
+      // })
     },
 
     async updateComment(root, {

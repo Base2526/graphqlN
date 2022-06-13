@@ -9,7 +9,7 @@ import cors from 'cors'
 import socketIO from 'socket.io'
 
 // import mongoose from "mongoose";
-import { elastic } from "./elastic"
+// import { elastic } from "./elastic"
 import connection from './mongo' 
 
 // TODO: import TypeDefs and Resolvers

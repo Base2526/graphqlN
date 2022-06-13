@@ -64,10 +64,6 @@ export default gql`
     total: Int
   }
 
-  # type Comment {
-  #   text:String
-  # }
-
   type File {
     _id: ID!
     base64: String
@@ -157,10 +153,8 @@ export default gql`
 
   type Comment{
     _id: ID!
-    body: String!
     postId: ID!
-    createdAt : DATETIME
-    updatedAt: DATETIME
+    data: String!
   }
 
   type Bookmark{
@@ -260,7 +254,7 @@ export default gql`
   type CommentPayLoad{
     status:Boolean
     executionTime:String
-    data:Comment
+    data:String
   }
 
   type CommentsPayLoad{
@@ -330,9 +324,7 @@ export default gql`
     getManyPosts(_ids: [ID!]!): PostsPayLoad
   
     
-    Comment(_id: ID!): CommentPayLoad
-    Comments(page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): CommentsPayLoad
-    # getManyComments(_ids: [ID!]!): CommentsPayLoad
+    Comment(postId: ID!): CommentPayLoad
     getManyReferenceComment(postId: String, page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): CommentsPayLoad
   
 
@@ -438,7 +430,24 @@ export default gql`
 
   input CommentInput {
     postId: ID!
-    body: String!
+    data: [CommentParentInput]
+  }
+
+  input CommentParentInput {
+    userId: String
+    comId: String
+    fullName: String
+    avatarUrl: String
+    text: String
+    replies: [RepliesInput]
+  }
+
+  input RepliesInput {
+    userId: String
+    comId: String
+    fullName: String
+    avatarUrl: String
+    text: String
   }
 
   input BookmarkInput {
