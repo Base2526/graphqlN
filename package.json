@@ -2,12 +2,12 @@
   "name": "graphql-x-api",
   "version": "1.0.0",
   "description": "A blazing fast GraphQL APIs with Node.js and MongoDB.",
-  "main": "server.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "nodemon --exec babel-node src/index.js"
+    "start": "nodemon --exec npx babel-node src/index.js"
   },
   "keywords": [],
-  "author": "Sorawit",
+  "author": "Somkid simajarn",
   "license": "ISC",
   "devDependencies": {
     "@babel/cli": "^7.5.5",

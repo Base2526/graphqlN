@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "D:\\Project-BigC\\new-banlist.info\\graphql\\src\\logs\\.01d7384f82977653ca6a37eb050bfe4011318c7e-audit.json",
+    "files": [
+        {
+            "date": 1655091490125,
+            "name": "D:\\Project-BigC\\new-banlist.info\\graphql\\src\\logs\\nodejs-guide-2022-06-13.log",
+            "hash": "b7ae799131f47d8a9d57e398546acadfff26639761b414c8918b5e44ff685a0b"
+        }
+    ],
+    "hashType": "sha256"
+}
