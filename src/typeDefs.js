@@ -152,15 +152,22 @@ export default gql`
   }
 
   type Comment{
+    status: Boolean
+    executionTime: String
+    data: [CommentParent]
+  }
+
+  type CommentData{
     _id: ID!
     postId: ID!
-    data: String!
+    data: [CommentParent]
   }
 
   type Bookmark{
-    _id: ID!
-    userId: ID!
-    postId: ID!
+    _id: ID
+    userId: ID
+    postId: ID
+    status: Boolean
   }
 
   type Share{
@@ -254,7 +261,24 @@ export default gql`
   type CommentPayLoad{
     status:Boolean
     executionTime:String
-    data:String
+    data:[CommentParent]
+  }
+
+  type CommentParent {
+    userId: String
+    comId: String
+    fullName: String
+    avatarUrl: String
+    text: String
+    replies: [Replies]
+  }
+
+  type Replies {
+    userId: String
+    comId: String
+    fullName: String
+    avatarUrl: String
+    text: String
   }
 
   type CommentsPayLoad{
@@ -268,6 +292,12 @@ export default gql`
     status:Boolean
     executionTime:String
     data:[Bookmark]
+  }
+
+  type BookmarkPayLoad{
+    status:Boolean
+    executionTime:String
+    data:Bookmark
   }
 
   type SharesPayLoad{
@@ -329,7 +359,8 @@ export default gql`
   
 
     Bookmarks(page: Int, perPage: Int): BookmarksPayLoad
-    BookmarksByPostId(postId: ID!, page: Int, perPage: Int): BookmarksPayLoad
+    bookmarksByPostId( postId: ID! ): BookmarksPayLoad
+    isBookmark(userId: ID!, postId: ID!): BookmarkPayLoad
 
     ContactUsList(page: Int, perPage: Int): ContactUsListPayLoad
 
@@ -453,6 +484,7 @@ export default gql`
   input BookmarkInput {
     postId: ID!
     userId: ID!
+    status: Boolean
   }
 
   type Mutation {

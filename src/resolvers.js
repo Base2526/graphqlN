@@ -494,10 +494,14 @@ export default {
     }) {
       let start = Date.now()
 
-      let data = await Comment.find({postId: postId});
+      // console.log("Comment: ", postId)
+
+      let data = await Comment.findOne({postId: postId});
+
+      // console.log("Comment > data : ", data)
       return {
         status:true,
-        data,
+        data: _.isEmpty(data) ? [] : data.data,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
         } seconds`
@@ -582,14 +586,27 @@ export default {
       }
     },
 
-    async BookmarksByPostId(root, {
-      postId,
-      page,
-      perPage
+    async bookmarksByPostId(root, {
+      postId
     }) {
-      console.log("BookmarksByPostId : ", postId, page, perPage)
       let start = Date.now()
-      let data = await Bookmark.find({postId: postId});
+      let data  = await Bookmark.find({ postId });
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    async isBookmark(root, {
+      userId,
+      postId
+    }) {
+      let start = Date.now()
+      let data =await Bookmark.findOne({ userId, postId });
+
       return {
         status:true,
         data,
@@ -702,12 +719,12 @@ export default {
     }) {
 
       let start = Date.now()
-      console.log("ShareByPostId  postId: ", postId,
-                  ", page : ", page, 
-                  ", perPage : ", perPage, 
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
+      // console.log("ShareByPostId  postId: ", postId,
+      //             ", page : ", page, 
+      //             ", perPage : ", perPage, 
+      //             `Time to execute = ${
+      //               (Date.now() - start) / 1000
+      //             } seconds` )
 
       let data = await Share.find({postId: postId});
       return {
@@ -936,15 +953,46 @@ export default {
     async createComment(root, {
       input
     }) {
-      // console.log("createComment :", input.postId)
 
-      return await Comment.create(input);
+      /*
+      console.log("createComment :", input.postId)
 
-      // return await Comment.findOneAndUpdate({
-      //   postId: input.postId
-      // }, input, {
-      //   new: true
-      // })
+      let result = await Comment.findOneAndUpdate({
+        postId: input.postId
+      }, input, {
+        new: true
+      })
+     
+      if(result === null){
+        result = await Comment.create(input);
+      }
+
+      console.log("createComment result :", result)
+
+      return result
+      */
+
+      let start = Date.now()
+
+      let result = await Comment.findOneAndUpdate({
+        postId: input.postId
+      }, input, {
+        new: true
+      })
+      
+      if(result === null){
+        result = await Comment.create(input);
+      }
+
+      console.log("createComment : ", result)
+                  
+      return {
+        status:true,
+        data: result.data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
     },
 
     async updateComment(root, {
@@ -985,7 +1033,21 @@ export default {
     }) {
       console.log("createBookmark :")
 
-      return await Bookmark.create(input);
+      let result = await Bookmark.findOneAndUpdate({
+        postId: input.postId
+      }, input, {
+        new: true
+      })
+
+      console.log("createBookmark  #1 ::::", result)
+     
+      if(result === null){
+        result = await Bookmark.create(input);
+      }
+
+      console.log("createBookmark #2 ::::", result)
+
+      return result;
     },
 
 
