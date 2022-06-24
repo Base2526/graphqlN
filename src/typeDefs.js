@@ -117,6 +117,12 @@ export default gql`
     description: String
   }
 
+  type BasicContent {
+    _id: ID!
+    name: String!
+    description: String
+  }
+
   type TContactUs {
     _id: ID!
     name: String!
@@ -130,12 +136,39 @@ export default gql`
     destination: String
   }
 
+
   type Dblog {
     _id: ID!
     level: String
     meta: String
     message: String
     timestamp: String
+  }
+
+  type Conversation {
+    _id: ID!
+    members: [String]
+  }
+
+  type Message {
+    _id: ID!
+    conversationId: ID!
+    avatar: String
+    date: DATETIME
+    forwarded: Boolean
+    meeting: String
+    position: String
+    removeButton: Boolean
+    reply: String
+    replyButton: Boolean
+    retracted: Boolean
+    status: String
+    text: String
+    theme: String
+    title: String
+    titleColor: String
+    type: String
+    view: String
   }
 
   type Mail {
@@ -220,6 +253,18 @@ export default gql`
     status:Boolean
     executionTime:String
     data:[Bank]
+  }
+
+  type BasicContentPayLoad {
+    status:Boolean
+    executionTime:String
+    data:BasicContent
+  }
+
+  type BasicContentsPayLoad {
+    status:Boolean
+    executionTime:String
+    data:[BasicContent]
   }
 
   type TContactUsPayLoad {
@@ -318,6 +363,18 @@ export default gql`
     data:[ContactUs]
   }
 
+  type ConversationsPayLoad {
+    status:Boolean
+    executionTime:String
+    data:[Conversation]
+  }
+
+  type MessagePayLoad {
+    status:Boolean
+    executionTime:String
+    data:[Message]
+  }
+
   type Query {
 
     Homes(page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
@@ -352,6 +409,8 @@ export default gql`
     Posts(page: Int, perPage: Int ): PostsPayLoad
     _allPostsMeta(page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): ListMetadata
     getManyPosts(_ids: [ID!]!): PostsPayLoad
+
+    postsByOwner(ownerId: ID!): PostsPayLoad
   
     
     Comment(postId: ID!): CommentPayLoad
@@ -374,6 +433,12 @@ export default gql`
 
 
     Dblog(page: Int, perPage: Int): DblogPayLoad
+
+    conversations(userId: ID!): ConversationsPayLoad
+    message(_id: ID!): MessagePayLoad
+
+    basicContent(_id: ID!): BasicContentPayLoad
+    basicContents(page: Int, perPage: Int): BasicContentsPayLoad
   }  
   
   input RoomInput {
@@ -433,6 +498,11 @@ export default gql`
     description: String
   }
 
+  input BasicContentInput {
+    name: String!
+    description: String
+  }
+
   input ContactUsInput{
     postId: String!
     categoryId: String!
@@ -449,6 +519,31 @@ export default gql`
     userId: ID!
     postId: ID!
     destination: String
+  }
+
+  input ConversationInput{
+    userId: ID!
+    friendId: ID!
+  }
+
+  input MessageInput{
+    conversationId: ID!
+    avatar: String
+    date: DATETIME
+    forwarded: Boolean
+    meeting: String
+    position: String
+    removeButton: Boolean
+    reply: String
+    replyButton: Boolean
+    retracted: Boolean
+    status: String
+    text: String
+    theme: String
+    title: String
+    titleColor: String
+    type: String
+    view: String
   }
 
   input FileInput {
@@ -533,6 +628,17 @@ export default gql`
     deleteTContactUsList(_ids: [ID!]!): deleteType
 
     createShare(input: ShareInput): Share
+
+
+
+    createConversation(input: ConversationInput): Conversation
+
+
+    addMessage(input: MessageInput) : Message
+
+
+    createBasicContent(input: BasicContentInput): BasicContent
+    updateBasicContent(_id: ID!, input: BasicContentInput): BasicContent
   }
 
   type deleteType {

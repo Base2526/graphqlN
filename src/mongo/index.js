@@ -11,7 +11,9 @@ import {Bank,
       
         tContactUs,
         Share,
-        Dblog} from '../model'
+        Dblog,
+        Conversation,
+        Message} from '../model'
 
 const modelExists =()=>{
   Bank.find({}, async(err, result) => {
@@ -155,6 +157,30 @@ const modelExists =()=>{
       await newDblog.save();
 
       await Dblog.deleteMany({})
+    }
+  });
+
+  Conversation.find({}, async(err, result)=> {
+    if (result.length > 0) {
+      console.log('Found Conversation');
+    } else {
+      console.log('Not found, creating');
+      let newConversation = new Conversation({});
+      await newConversation.save();
+
+      await Conversation.deleteMany({})
+    }
+  });
+
+  Message.find({}, async(err, result)=> {
+    if (result.length > 0) {
+      console.log('Found Message');
+    } else {
+      console.log('Not found, creating');
+      let newMessage = new Message({});
+      await newMessage.save();
+
+      await Message.deleteMany({})
     }
   });
 }

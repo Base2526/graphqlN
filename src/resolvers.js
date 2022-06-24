@@ -9,7 +9,11 @@ import {Bank,
         ContactUs, 
         tContactUs, 
         Share, 
-        Dblog} from './model'
+        Dblog,
+        Conversation,
+        Message,
+      
+        BasicContent} from './model'
 import {emailValidate} from './utils'
 
 const _ = require("lodash");
@@ -90,7 +94,7 @@ export default {
     }) {
       let start = Date.now()
 
-      console.log("User : >> ", _id)
+      // console.log("User : >> ", _id)
       let data = await User.findById(_id);
       return {
         status:true,
@@ -108,17 +112,17 @@ export default {
 
       let start = Date.now()
 
-      console.log("users: page : ", page,
-                  ", perPage : ", perPage,
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
+      // console.log("users: page : ", page,
+      //             ", perPage : ", perPage,
+      //             `Time to execute = ${
+      //               (Date.now() - start) / 1000
+      //             } seconds` )
 
       // let data = await User.find();
       let data = await  User.find({}).limit(perPage).skip(page); //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
       
       let total = (await User.find({})).length;//.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      console.log("total  ", total)
+      // console.log("total  ", total)
 
       return {
         status:true,
@@ -253,6 +257,24 @@ export default {
         } seconds`
       }
     },
+    async postsByOwner(root, {
+      ownerId
+    }) {
+
+      let start = Date.now()
+
+      console.log("postsByOwner : ", ownerId)
+      
+      let data = await  Post.find({ownerId: ownerId}); 
+      return {
+        status:true,
+        data,
+        total: data.length,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
     async getManyPosts(root, {
       _ids
     }) {
@@ -382,6 +404,36 @@ export default {
       }
     },
     // Bank
+
+    // BasicContent
+    async basicContent(root, {
+      _id
+    }) {
+
+      let data = await BasicContent.findById(_id);
+      return {
+        status:true,
+        data
+      }
+    },
+    async basicContents(root, {
+      page,
+      perPage
+    }) {
+
+      let start = Date.now()
+
+      let data = await BasicContent.find();
+      
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+    // BasicContent
 
     // Mail
     async Mail(root, {
@@ -757,6 +809,49 @@ export default {
         } seconds`
       }
     },
+
+    // 
+    async conversations(root, {
+      userId
+    }) {
+
+      let start = Date.now()
+
+      let data = await Conversation.find({
+        members: { $all: [userId] },
+      });
+
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    // 
+    async message(root, {
+      _id
+    }) {
+
+      
+      let start = Date.now()
+
+      let data = await Message.find({
+        conversationId: _id,
+      });
+
+      console.log("message : ", _id, data)
+
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
     
   },
   Mutation: {
@@ -907,6 +1002,31 @@ export default {
       return deleteMany;
     },
     // bank
+
+
+   // basic content
+
+    async createBasicContent(root, {
+      input
+    }) {
+      console.log("CreateBasicContent :",JSON.parse(JSON.stringify(input)))
+
+      return await BasicContent.create(JSON.parse(JSON.stringify(input)));
+    },
+    async updateBasicContent(root, {
+      _id,
+      input
+    }) {
+      console.log("UpdateBasicContent :", _id, JSON.parse(JSON.stringify(input)))
+      
+      return await BasicContent.findOneAndUpdate({
+        _id
+      }, input, {
+        new: true
+      })
+    },
+
+   // basic content
 
     // mail
     async createMail(root, {
@@ -1102,6 +1222,49 @@ export default {
       console.log("createShare")
 
       return await Share.create(input);
+    },
+
+    async createConversation(root, {
+      input
+    }) {
+      console.log("createConversation params : ", input)
+
+      let result= await Conversation.findOne({
+        members: { $all: [input.userId, input.friendId] },
+      });
+
+      if(result === null){
+        result = await Conversation.create({
+          members: [input.userId, input.friendId],
+        });
+      }
+
+      console.log("createConversation result : ", result)
+
+      return result;
+    },
+
+    // 
+    async addMessage(root, {
+      input
+    }) {
+      console.log("addMessage params : ", input)
+
+      // let result= await Conversation.findOne({
+      //   members: { $all: [input.userId, input.friendId] },
+      // });
+
+      // if(result === null){
+      //   result = await Message.create({
+      //     members: [input.userId, input.friendId],
+      //   });
+      // }
+
+      // console.log("createConversation result : ", result)
+
+      let result = await Message.create(input);
+
+      return result;
     },
   }
 };

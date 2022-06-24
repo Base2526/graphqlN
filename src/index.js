@@ -153,6 +153,36 @@ async function startApolloServer(typeDefs, resolvers) {
       await Socket.deleteOne({socketId: soc.id })
     })
 
+    ///////////////////
+
+    soc.on("CHANNEL_SWITCH", (data) => {
+      const { prevChannel, channel } = data;
+
+      console.log("CHANNEL_SWITCH :", data)
+      // if (prevChannel) {
+      //   socket.leave(prevChannel);
+      // }
+      // if (channel) {
+      //   socket.join(channel);
+      // }
+    });
+
+    // soc.on("MESSAGE_SEND", (data) => {
+
+    //   console.log("MESSAGE_SEND :", data)
+    //   // addMessage(data);
+    //   // const { channel } = data;
+    //   // socket.broadcast.to(channel).emit("NEW_MESSAGE", data);
+    // });
+
+    soc.on("MESSAGE_SEND" , (arg, callback) => {
+      console.log(arg); // "world"
+      callback("got it");
+    });
+
+
+    ///////////////////
+
     // https://stackoverflow.com/questions/20337832/is-socket-io-emit-callback-appropriate
     /*
     client send data to server
