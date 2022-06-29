@@ -6,21 +6,6 @@
     "auditLog": "/app/src/logs/.fd7cd286ed23dbba7e3663acd4a84eabf50ec3be-audit.json",
     "files": [
         {
-            "date": 1655030654025,
-            "name": "/app/src/logs/nodejs-guide-2022-06-12.log",
-            "hash": "b0488dd67b2d5817deb421b5449b4fc735753e84bb6d22a2bd52cb0bbb9abdda"
-        },
-        {
-            "date": 1655082856804,
-            "name": "/app/src/logs/nodejs-guide-2022-06-13.log",
-            "hash": "6a989a7558e8ec48cf324bb3a0a148dca282dc46b22672ccc9641809f514f5d1"
-        },
-        {
-            "date": 1655212091118,
-            "name": "/app/src/logs/nodejs-guide-2022-06-14.log",
-            "hash": "a8fd50693cc820dc95b3ead71ab57a7d7626681d1f969ac01659062911300c67"
-        },
-        {
             "date": 1655283323050,
             "name": "/app/src/logs/nodejs-guide-2022-06-15.log",
             "hash": "8df27a31c270dbce9bbc7af96dcef45abe96a47bebd6fa6c410c921e2ae22f3e"
@@ -69,6 +54,31 @@
             "date": 1656033758616,
             "name": "/app/src/logs/nodejs-guide-2022-06-24.log",
             "hash": "ced34457ad185cbce366cb8c2fc4eb614827b33dd524188ad9544e96ec08deac"
+        },
+        {
+            "date": 1656125715817,
+            "name": "/app/src/logs/nodejs-guide-2022-06-25.log",
+            "hash": "e23436c22a02538e3e8bf11459d9cf1c1e56ddb4a83f0b0ffdf5465ec8208430"
+        },
+        {
+            "date": 1656201743347,
+            "name": "/app/src/logs/nodejs-guide-2022-06-26.log",
+            "hash": "0148d6f806ce256f2664e44d66ec18f4505850f549ef65ed5ede5c59f515e7f4"
+        },
+        {
+            "date": 1656294549089,
+            "name": "/app/src/logs/nodejs-guide-2022-06-27.log",
+            "hash": "7145fb5cdb3661b19cda5af537d1b62cbce79823c3fe9de54c992a7b9cd61b35"
+        },
+        {
+            "date": 1656394324158,
+            "name": "/app/src/logs/nodejs-guide-2022-06-28.log",
+            "hash": "618f85534d7281a457a6deb979e8ec6df62883286f1bb54ffb7702da75df37ec"
+        },
+        {
+            "date": 1656467309699,
+            "name": "/app/src/logs/nodejs-guide-2022-06-29.log",
+            "hash": "ebbfb24f8ff86705dfffc9498dc656ec00837e187917798571862fc971ba9d34"
         }
     ],
     "hashType": "sha256"

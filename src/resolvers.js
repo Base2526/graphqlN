@@ -13,7 +13,9 @@ import {Bank,
         Conversation,
         Message,
       
-        BasicContent} from './model'
+        BasicContent,
+      
+        Follow} from './model'
 import {emailValidate} from './utils'
 
 const _ = require("lodash");
@@ -194,13 +196,61 @@ export default {
                     (Date.now() - start) / 1000
                   } seconds` )
 
+                  /*
+                  0 : ชื่อเรื่อง | title
+                  1 : ชื่อ-นามสกุล บัญชีผู้รับเงินโอน | nameSubname
+                  2 : เลขบัตรประชาชนคนขาย | idCard
+                  3 : บัญชีธนาคาร | banks[]
+                  4 : เบอร์โทรศัพท์ | tels[]
+                  */
 
-      let data = await  Post.find({}).limit(perPage).skip(page); //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
+      let data = null;
+      let total = 0;
+
+      let skip =  page == 0 ? page : (perPage * page) + 1;
+     
       
-      let total = (await Post.find({})).length; //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      console.log("total  ", total)
+      let p = 0;
+      if(keywordSearch != undefined){
+        keywordSearch = keywordSearch.trim()
+        
+        category = category.split(',');
 
-      // let data = await Post.find();
+        let regex = [];
+        if(category.includes("0")){
+          regex = [...regex, {title: { $regex: '.*' + keywordSearch + '.*' } }]
+        }
+
+        if(category.includes("1")){
+          regex = [...regex, {nameSubname: { $regex: '.*' + keywordSearch + '.*' } }]
+        }
+
+        if(category.includes("2")){
+          regex = [...regex, {idCard: { $regex: '.*' + keywordSearch + '.*' } }]
+        }
+
+        if(category.includes("3")){
+          regex = [...regex, {"banks.bankAccountName": { $in: [keywordSearch] } }]
+        }
+
+        if(category.includes("4")){
+          regex = [...regex, {tels: { $in: [keywordSearch] } }]
+        }
+
+        console.log("regex : ", regex)
+
+       
+        data = await Post.find({ $or: regex }).limit(perPage).skip(skip);
+
+        p = (Date.now() - start) / 1000;
+        total = (await Post.find().lean().exec()).length; 
+      }else{
+        data = await Post.find().limit(perPage).skip(skip); 
+
+        p = (Date.now() - start) / 1000;
+        total = (await Post.find().lean().exec()).length;
+      }
+      console.log("total , skip :", total, skip)
 
       return {
         status:true,
@@ -208,7 +258,7 @@ export default {
         total,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
-        } seconds`
+        }-${ p } seconds`,
       }
     },
     // homes
@@ -240,13 +290,8 @@ export default {
                     (Date.now() - start) / 1000
                   } seconds` )
 
-
-      let data = await  Post.find({}).limit(perPage).skip(page); //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
-      
-      let total = (await Post.find({})).length; //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      console.log("total  ", total)
-
-      // let data = await Post.find();
+      let data = await  Post.find({}).limit(perPage).skip(page); 
+      let total = (await Post.find().lean().exec()).length;
 
       return {
         status:true,
@@ -257,15 +302,15 @@ export default {
         } seconds`
       }
     },
-    async postsByOwner(root, {
-      ownerId
+    async postsByUserId(root, {
+      userId
     }) {
 
       let start = Date.now()
 
-      console.log("postsByOwner : ", ownerId)
+      console.log("postsByUserId : ", userId)
       
-      let data = await  Post.find({ownerId: ownerId}); 
+      let data = await  Post.find({ownerId: userId}); 
       return {
         status:true,
         data,
@@ -541,7 +586,7 @@ export default {
     // Socket
 
     // Comment 
-    async Comment(root, {
+    async comment(root, {
       postId
     }) {
       let start = Date.now()
@@ -667,6 +712,73 @@ export default {
         } seconds`
       }
     },
+
+    // 
+    async bookmarksByUserId(root, {
+      userId
+    }) {
+      let start = Date.now()
+      let data  = await Bookmark.find({ userId, status:true });
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    // isFollow(userId: ID!, friendId: ID!): FollowPayLoad
+    async isFollow(root, {
+      userId,
+      friendId
+    }) {
+      let start = Date.now()
+      let data =await Follow.findOne({ userId, friendId });
+
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    async followerByUserId(root, {
+      userId
+    }) {
+      console.log("followerByUserId : ", userId)
+      let start = Date.now()
+      let data =await Follow.find({ friendId: userId, status: true  });
+
+      console.log("followerByUserId data : ", data)
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    async followingByUserId(root, {
+      userId
+    }) {
+      console.log("followingByUserId : ", userId)
+      let start = Date.now()
+      let data =await Follow.find({ userId: userId, status: true  });
+
+      console.log("followingByUserId data : ", data)
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
 
     // 
     async ContactUsList(root, {
@@ -799,8 +911,10 @@ export default {
                   `Time to execute = ${
                     (Date.now() - start) / 1000
                   } seconds` )
+            
+      let skip =  page == 0 ? page : (perPage * page) + 1;
+      let data = await Dblog.find({}).limit(perPage).skip(skip);
 
-      let data = await Dblog.find();
       return {
         status:true,
         data,
@@ -1166,6 +1280,29 @@ export default {
       }
 
       console.log("createBookmark #2 ::::", result)
+
+      return result;
+    },
+
+    // 
+    async createAndUpdateFollow(root, {
+      input
+    }) {
+      console.log("createAndUpdateFollow: ", input)
+
+      let result = await Follow.findOneAndUpdate({
+        userId: input.userId, friendId: input.friendId
+      }, input, {
+        new: true
+      })
+
+      console.log("createAndUpdateFollow  #1 ::::", result)
+     
+      if(result === null){
+        result = await Follow.create(input);
+      }
+
+      console.log("createAndUpdateFollow #2 ::::", result)
 
       return result;
     },

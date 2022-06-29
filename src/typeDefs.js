@@ -99,7 +99,7 @@ export default gql`
     follows: [ID]
     files: [File]
     isPublish: Int
-    ownerId: ID
+    ownerId: ID!
     createdAt : DATETIME
     updatedAt: DATETIME
   }
@@ -200,6 +200,13 @@ export default gql`
     _id: ID
     userId: ID
     postId: ID
+    status: Boolean
+  }
+
+  type Follow{
+    _id: ID
+    userId: ID
+    friendId: ID
     status: Boolean
   }
 
@@ -345,6 +352,18 @@ export default gql`
     data:Bookmark
   }
 
+  type FollowPayLoad{
+    status:Boolean
+    executionTime:String
+    data:Follow
+  }
+
+  type FollowsPayLoad{
+    status:Boolean
+    executionTime:String
+    data:[Follow]
+  }
+
   type SharesPayLoad{
     status:Boolean
     executionTime:String
@@ -410,16 +429,17 @@ export default gql`
     _allPostsMeta(page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): ListMetadata
     getManyPosts(_ids: [ID!]!): PostsPayLoad
 
-    postsByOwner(ownerId: ID!): PostsPayLoad
+    postsByUserId(userId: ID!): PostsPayLoad
   
     
-    Comment(postId: ID!): CommentPayLoad
+    comment(postId: ID!): CommentPayLoad
     getManyReferenceComment(postId: String, page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): CommentsPayLoad
   
 
     Bookmarks(page: Int, perPage: Int): BookmarksPayLoad
     bookmarksByPostId( postId: ID! ): BookmarksPayLoad
     isBookmark(userId: ID!, postId: ID!): BookmarkPayLoad
+    bookmarksByUserId( userId: ID! ): BookmarksPayLoad
 
     ContactUsList(page: Int, perPage: Int): ContactUsListPayLoad
 
@@ -439,6 +459,10 @@ export default gql`
 
     basicContent(_id: ID!): BasicContentPayLoad
     basicContents(page: Int, perPage: Int): BasicContentsPayLoad
+
+    isFollow(userId: ID!, friendId: ID!): FollowPayLoad
+    followerByUserId(userId: ID!): FollowsPayLoad
+    followingByUserId(userId: ID!): FollowsPayLoad
   }  
   
   input RoomInput {
@@ -466,7 +490,7 @@ export default gql`
     files: [FileInput]
     follows: [ID]
     isPublish: Int
-    ownerId: ID
+    ownerId: ID!
   }
 
   input PostBankInput {
@@ -582,6 +606,12 @@ export default gql`
     status: Boolean
   }
 
+  input FollowInput {
+    userId: ID!
+    friendId: ID!
+    status: Boolean
+  }
+
   type Mutation {
     # createRoom(input: RoomInput): Room
     # updateRoom(_id: ID!, input: RoomInput): Room
@@ -639,6 +669,9 @@ export default gql`
 
     createBasicContent(input: BasicContentInput): BasicContent
     updateBasicContent(_id: ID!, input: BasicContentInput): BasicContent
+
+
+    createAndUpdateFollow(input: FollowInput): Follow
   }
 
   type deleteType {

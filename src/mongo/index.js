@@ -13,7 +13,8 @@ import {Bank,
         Share,
         Dblog,
         Conversation,
-        Message} from '../model'
+        Message,
+        Follow} from '../model'
 
 const modelExists =()=>{
   Bank.find({}, async(err, result) => {
@@ -181,6 +182,18 @@ const modelExists =()=>{
       await newMessage.save();
 
       await Message.deleteMany({})
+    }
+  });
+
+  Follow.find({}, async(err, result)=> {
+    if (result.length > 0) {
+      console.log('Found Follow');
+    } else {
+      console.log('Not found, creating');
+      let newFollow = new Follow({});
+      await newFollow.save();
+
+      await Follow.deleteMany({})
     }
   });
 }

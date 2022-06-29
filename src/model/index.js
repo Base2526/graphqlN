@@ -19,6 +19,8 @@ import MessageModel from "./MessageModel"
 
 import BasicContentModel from "./BasicContentModel"
 
+import FollowModel from "./FollowModel"
+
 module.exports =  {
     Bank:BankModel,
     Post:PostModel,
@@ -40,5 +42,7 @@ module.exports =  {
 
     Message: MessageModel,
 
-    BasicContent: BasicContentModel
+    BasicContent: BasicContentModel,
+
+    Follow: FollowModel
 };
