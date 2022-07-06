@@ -22,74 +22,6 @@ const _ = require("lodash");
 
 export default {
   Query: {
-
-    // Login & Logout
-    async Login(root, {
-      username, 
-      password
-    }) {
-      let start = Date.now()
-
-     
-
-      // let user = null;
-      // if(emailValidate().test(username)){
-      //   user = await User.findOne({email: username})
-      // }else{
-      //   user = await User.findOne({username})
-      // }
-
-      let user = emailValidate().test(username) ?  await User.findOne({email: username}) : await User.findOne({username})
-
-      if(user === null){
-        return {
-          status: false,
-          messages: "xxx", 
-          data:{
-            _id: "",
-            username: "",
-            password: "",
-            email: "",
-            displayName: "",
-            roles:[]
-          },
-          executionTime: `Time to execute = ${
-            (Date.now() - start) / 1000
-          } seconds`
-        }
-      }
-
-      // update lastAccess
-      await User.findOneAndUpdate({
-        _id: user._doc._id
-      }, {
-        lastAccess: Date.now()
-      }, {
-        new: true
-      })
-
-      user = emailValidate().test(username) ?  await User.findOne({email: username}) : await User.findOne({username})
-
-      let roles = await Promise.all(_.map(user.roles, async(_id)=>{
-        let role = await Role.findById(_id)
-        console.log("_id", _id, role)
-        return role.name
-      }))
-      user = {...user._doc,  roles}
-
-      console.log("Login vvv", user )
-
-      return {
-        status: true,
-        messages: "", 
-        data: user,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
-      }
-    },
-    // Login & Logout
-
     // user
     async User(root, {
       _id
@@ -218,15 +150,15 @@ export default {
 
         let regex = [];
         if(category.includes("0")){
-          regex = [...regex, {title: { $regex: '.*' + keywordSearch + '.*' } }]
+          regex = [...regex, {title: { $regex: '.*' + keywordSearch + '.*', $options: 'i' } }]
         }
 
         if(category.includes("1")){
-          regex = [...regex, {nameSubname: { $regex: '.*' + keywordSearch + '.*' } }]
+          regex = [...regex, {nameSubname: { $regex: '.*' + keywordSearch + '.*', $options: 'i' } }]
         }
 
         if(category.includes("2")){
-          regex = [...regex, {idCard: { $regex: '.*' + keywordSearch + '.*' } }]
+          regex = [...regex, {idCard: { $regex: '.*' + keywordSearch + '.*', $options: 'i' } }]
         }
 
         if(category.includes("3")){
@@ -252,9 +184,13 @@ export default {
       }
       console.log("total , skip :", total, skip)
 
+      let new_data = await Promise.all( _.map(data, async(v)=>{
+                        return {...v._doc, shares: await Share.find({postId: v._id})}
+                      }))
+
       return {
         status:true,
-        data,
+        data: new_data,
         total,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
@@ -745,17 +681,20 @@ export default {
       }
     },
 
-    async followerByUserId(root, {
+    async follower(root, {
       userId
     }) {
-      console.log("followerByUserId : ", userId)
+      console.log("follower : ", userId)
       let start = Date.now()
-      let data =await Follow.find({ friendId: userId, status: true  });
+      let follows =await Follow.find({ friendId: userId, status: true  });
 
-      console.log("followerByUserId data : ", data)
+      let data =  await Promise.all(_.map(follows, async(v)=>{ return await User.findById(v.userId) }))
+
+      console.log(">> follower : data ", data, data.length)
       return {
         status:true,
-        data,
+        data: data,
+        total: data.length,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
         } seconds`
@@ -969,6 +908,93 @@ export default {
     
   },
   Mutation: {
+
+    // Login & Logout
+    async login(root, {
+      input
+    }) {
+      console.log("login :", input)
+
+      let start = Date.now()
+
+      // let user = null;
+      // if(emailValidate().test(username)){
+      //   user = await User.findOne({email: username})
+      // }else{
+      //   user = await User.findOne({username})
+      // }
+
+      let user = emailValidate().test(input.username) ?  await User.findOne({email: input.username}) : await User.findOne({username: input.username})
+
+      if(user === null){
+        return {
+          status: false,
+          messages: "xxx", 
+          data:{
+            _id: "",
+            username: "",
+            password: "",
+            email: "",
+            displayName: "",
+            roles:[]
+          },
+          executionTime: `Time to execute = ${
+            (Date.now() - start) / 1000
+          } seconds`
+        }
+      }
+
+      let lastAccess = Date.now()
+
+      // update lastAccess
+      await User.findOneAndUpdate({
+        _id: user._doc._id
+      }, {
+        lastAccess
+      }, {
+        new: true
+      })
+
+      // lastAccess
+
+      // user = {...user, lastAccess}
+
+      // user = emailValidate().test(input.username) ?  await User.findOne({email: input.username}) : await User.findOne({username: input.username})
+
+      let roles = await Promise.all(_.map(user.roles, async(_id)=>{
+        let role = await Role.findById(_id)
+        return role.name
+      }))
+
+      // let bookmarks =await Bookmark.find({ userId: user._doc._id, status: true });
+
+      user = { ...user._doc,  roles }
+
+      console.log("Login : ", user )
+
+      return {
+        status: true,
+        messages: "", 
+        data: user,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+    // Login & Logout
+
+    // 
+    async loginWithSocial(root, {
+      input
+    }) {
+      console.log("loginWithSocial :", input)
+      // input = {...input, displayName: input.username}
+      // return await User.create(input);
+
+      return {_id: "12222"}
+    },
+
+
     // user
     async createUser(root, {
       input

@@ -27,8 +27,13 @@ export default gql`
     displayName: String!
     isActive: String
     roles: [String]!
+    bookmarks: [Bookmark]
     image: [File]
     lastAccess: DATETIME
+  }
+
+  type LoginWithSocial{
+    _id: ID!
   }
 
   input UserInput {
@@ -38,6 +43,18 @@ export default gql`
     roles: [String]
     isActive: String!
     image: [FileInput]
+  }
+
+  input LoginInput {
+    username: String!
+    password: String!
+  }
+
+  input LoginWithSocialInput{
+    idToken: String!
+    name: String!
+    email: String!
+    typeSocial: String!
   }
 
   type RoomPayLoad {
@@ -97,6 +114,7 @@ export default gql`
     tels: [String]
     banks: [PostBank]
     follows: [ID]
+    shares:[Share]
     files: [File]
     isPublish: Int
     ownerId: ID!
@@ -395,10 +413,7 @@ export default gql`
   }
 
   type Query {
-
     Homes(page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
-
-    Login(username: String!, password: String!): UserPayLoad
 
     room(_id: ID!): RoomPayLoad
     rooms: RoomsPayLoad
@@ -461,7 +476,7 @@ export default gql`
     basicContents(page: Int, perPage: Int): BasicContentsPayLoad
 
     isFollow(userId: ID!, friendId: ID!): FollowPayLoad
-    followerByUserId(userId: ID!): FollowsPayLoad
+    follower(userId: ID!): UsersPayLoad
     followingByUserId(userId: ID!): FollowsPayLoad
   }  
   
@@ -616,6 +631,9 @@ export default gql`
     # createRoom(input: RoomInput): Room
     # updateRoom(_id: ID!, input: RoomInput): Room
     # deleteRoom(_id: ID!): Room
+
+    login(input: LoginInput): UserPayLoad
+    loginWithSocial(input: LoginWithSocialInput): LoginWithSocial
 
     createUser(input: UserInput): User
     updateUser(_id: ID!, input: UserInput): User
