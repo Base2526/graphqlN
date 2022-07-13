@@ -1,3 +1,6 @@
+import { PubSub } from "graphql-subscriptions";
+import jwt from 'jsonwebtoken';
+
 import {Bank, 
         Post, 
         Role, 
@@ -12,21 +15,34 @@ import {Bank,
         Dblog,
         Conversation,
         Message,
-      
         BasicContent,
-      
-        Follow} from './model'
+        Follow,
+        Session} from './model'
 import {emailValidate} from './utils'
 
+// const logger = require('./utils/logger');
 const _ = require("lodash");
+
+const pubsub = new PubSub();
 
 export default {
   Query: {
+
+    currentNumber() {
+      let currentNumber = Math.floor(Math.random() * 1000);
+      pubsub.publish("NUMBER_INCREMENTED", { numberIncremented: currentNumber });
+      return currentNumber;
+    },
+
     // user
-    async User(root, {
-      _id
-    }) {
+    async user(parent, args, context, info) {
       let start = Date.now()
+
+      if(!context.status){
+        // foce logout
+      }
+
+      let {_id} = args
 
       // console.log("User : >> ", _id)
       let data = await User.findById(_id);
@@ -111,39 +127,47 @@ export default {
     // user
 
     // homes
-    async Homes(root, {
-      page,
-      perPage, 
-      keywordSearch, 
-      category
-    }) {
+    async homes(parent, args, context, info) {
+      let {
+        page,
+        perPage, 
+        keywordSearch, 
+        category
+      } = args
 
       let start = Date.now()
 
-      console.log("Homes: page : ", page,
-                  ", perPage : ", perPage, 
-                  ", keywordSearch : ", keywordSearch,
-                  ", category : ", category, 
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
+      // console.log("Homes: page : ", page,
+      //             ", perPage : ", perPage, 
+      //             ", keywordSearch : ", keywordSearch,
+      //             ", category : ", category , 
+      //             `Time to execute = ${
+      //               (Date.now() - start) / 1000
+      //             } seconds` )
 
-                  /*
-                  0 : ชื่อเรื่อง | title
-                  1 : ชื่อ-นามสกุล บัญชีผู้รับเงินโอน | nameSubname
-                  2 : เลขบัตรประชาชนคนขาย | idCard
-                  3 : บัญชีธนาคาร | banks[]
-                  4 : เบอร์โทรศัพท์ | tels[]
-                  */
+      
+
+      /*
+      0 : ชื่อเรื่อง | title
+      1 : ชื่อ-นามสกุล บัญชีผู้รับเงินโอน | nameSubname
+      2 : เลขบัตรประชาชนคนขาย | idCard
+      3 : บัญชีธนาคาร | banks[]
+      4 : เบอร์โทรศัพท์ | tels[]
+      */
+
+      if(!context.status){
+        // foce logout
+      }
 
       let data = null;
       let total = 0;
 
       let skip =  page == 0 ? page : (perPage * page) + 1;
      
-      
       let p = 0;
-      if(keywordSearch != undefined){
+
+      // console.log("keywordSearch ::", !!keywordSearch, keywordSearch)
+      if(!!keywordSearch){
         keywordSearch = keywordSearch.trim()
         
         category = category.split(',');
@@ -169,9 +193,8 @@ export default {
           regex = [...regex, {tels: { $in: [keywordSearch] } }]
         }
 
-        console.log("regex : ", regex)
+        console.log("regex :", regex)
 
-       
         data = await Post.find({ $or: regex }).limit(perPage).skip(skip);
 
         p = (Date.now() - start) / 1000;
@@ -200,20 +223,20 @@ export default {
     // homes
 
     // post
-    async Post(root, {
-      _id
-    }) {
+    async post(parent, args, context, info) {
 
-      
+      if(!context.status){
+        // foce logout
+      }
+
+      let { _id } = args
       let data = await Post.findById(_id);
-
-      // console.log("Post: ", data)
       return {
         status:true,
         data
       }
     },
-    async Posts(root, {
+    async posts(root, {
       page,
       perPage
     }) {
@@ -238,13 +261,13 @@ export default {
         } seconds`
       }
     },
-    async postsByUserId(root, {
+    async postsByUser(root, {
       userId
     }) {
 
       let start = Date.now()
 
-      console.log("postsByUserId : ", userId)
+      // console.log("postsByUser : ", userId)
       
       let data = await  Post.find({ownerId: userId}); 
       return {
@@ -684,13 +707,12 @@ export default {
     async follower(root, {
       userId
     }) {
-      console.log("follower : ", userId)
+
       let start = Date.now()
       let follows =await Follow.find({ friendId: userId, status: true  });
 
       let data =  await Promise.all(_.map(follows, async(v)=>{ return await User.findById(v.userId) }))
 
-      console.log(">> follower : data ", data, data.length)
       return {
         status:true,
         data: data,
@@ -908,22 +930,12 @@ export default {
     
   },
   Mutation: {
-
     // Login & Logout
-    async login(root, {
-      input
-    }) {
-      console.log("login :", input)
+    async login(parent, args, context, info) {
+
+      let {input} = args
 
       let start = Date.now()
-
-      // let user = null;
-      // if(emailValidate().test(username)){
-      //   user = await User.findOne({email: username})
-      // }else{
-      //   user = await User.findOne({username})
-      // }
-
       let user = emailValidate().test(input.username) ?  await User.findOne({email: input.username}) : await User.findOne({username: input.username})
 
       if(user === null){
@@ -944,46 +956,39 @@ export default {
         }
       }
 
-      let lastAccess = Date.now()
-
       // update lastAccess
       await User.findOneAndUpdate({
         _id: user._doc._id
       }, {
-        lastAccess
+        lastAccess : Date.now()
       }, {
         new: true
       })
-
-      // lastAccess
-
-      // user = {...user, lastAccess}
-
-      // user = emailValidate().test(input.username) ?  await User.findOne({email: input.username}) : await User.findOne({username: input.username})
 
       let roles = await Promise.all(_.map(user.roles, async(_id)=>{
         let role = await Role.findById(_id)
         return role.name
       }))
 
-      // let bookmarks =await Bookmark.find({ userId: user._doc._id, status: true });
-
       user = { ...user._doc,  roles }
+      // console.log("Login : ", user )
 
-      console.log("Login : ", user )
+      let token = jwt.sign(user._id.toString(), process.env.JWT_SECRET)
+
+      input = {...input, token}
+      await Session.create(input);
 
       return {
         status: true,
         messages: "", 
+        token,
         data: user,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
         } seconds`
       }
     },
-    // Login & Logout
-
-    // 
+    // loginWithSocial
     async loginWithSocial(root, {
       input
     }) {
@@ -993,13 +998,16 @@ export default {
 
       return {_id: "12222"}
     },
-
-
     // user
-    async createUser(root, {
-      input
-    }) {
-      console.log("createUser :", input)
+    async createUser(parent, args, context, info) {
+      
+      if(_.isEmpty(context)){
+        // logger.error(JSON.stringify(args));
+        return;
+      }
+
+      let {input} = args
+
       input = {...input, displayName: input.username}
       return await User.create(input);
     },
@@ -1286,54 +1294,81 @@ export default {
       return deleteMany;
     },
     // comment
+    
+    async createAndUpdateBookmark(parent, args, context, info) {
 
+      if(_.isEmpty(context)){
+        // logger.error(JSON.stringify(args));
+        return;
+      }
 
-    async createBookmark(root, {
-      input
-    }) {
-      console.log("createBookmark :")
+      let {input} = args
+
+      /**
+       * validate data
+      */
+      if(_.isEmpty(await Post.findById(input.postId))){
+        // logger.error("Post id empty :", input.postId)
+        return;
+      } 
+
+      if(_.isEmpty(await User.findById(input.userId))){
+        // logger.error("User id empty :", input.userId)
+        return;
+      } 
+      /**
+       * validate data
+      */
 
       let result = await Bookmark.findOneAndUpdate({
         postId: input.postId
       }, input, {
         new: true
       })
-
-      console.log("createBookmark  #1 ::::", result)
      
       if(result === null){
         result = await Bookmark.create(input);
       }
 
-      console.log("createBookmark #2 ::::", result)
-
       return result;
     },
+    async createAndUpdateFollow(parent, args, context, info) {
 
-    // 
-    async createAndUpdateFollow(root, {
-      input
-    }) {
-      console.log("createAndUpdateFollow: ", input)
+      if(_.isEmpty(context)){
+        // logger.error(JSON.stringify(args));
+        return;
+      }
+      
+      let {input} = args
+
+      /**
+       * validate data
+      */
+      if(_.isEmpty(await User.findById(input.userId))){
+        // logger.error("User id empty :", input.userId)
+        return;
+      } 
+
+      if(_.isEmpty(await User.findById(input.friendId))){
+        // logger.error("User id empty :", input.friendId)
+        return;
+      } 
+      /**
+       * validate data
+      */
 
       let result = await Follow.findOneAndUpdate({
         userId: input.userId, friendId: input.friendId
       }, input, {
         new: true
       })
-
-      console.log("createAndUpdateFollow  #1 ::::", result)
      
       if(result === null){
         result = await Follow.create(input);
       }
 
-      console.log("createAndUpdateFollow #2 ::::", result)
-
       return result;
     },
-
-
     // TContactUs
     async createTContactUs(root, {
       input
@@ -1371,10 +1406,30 @@ export default {
     },
     // TContactUs
 
-    async createContactUs(root, {
-      input
-    }) {
-      console.log("createContactUs")
+    async createContactUs(parent, args, context, info) {
+
+      if(_.isEmpty(context)){
+        // logger.error(JSON.stringify(args));
+        return;
+      }
+
+      let {input} = args
+
+      /**
+       * validate data
+      */
+      if(_.isEmpty(await Post.findById(input.postId))){
+        // logger.error("Post id empty : ", input.postId)
+        return;
+      } 
+
+      if(_.isEmpty(await User.findById(input.userId))){
+        // logger.error("User id empty : ", input.userId)
+        return;
+      } 
+      /**
+       * validate data
+      */
 
       return await ContactUs.create(input);
     },
@@ -1429,5 +1484,13 @@ export default {
 
       return result;
     },
+  },
+
+  Subscription:{
+    numberIncremented: {
+      subscribe: () => pubsub.asyncIterator(["NUMBER_INCREMENTED"]),
+    },
   }
+
+  // commentAdded
 };

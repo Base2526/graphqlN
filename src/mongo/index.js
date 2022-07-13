@@ -14,7 +14,8 @@ import {Bank,
         Dblog,
         Conversation,
         Message,
-        Follow} from '../model'
+        Follow,
+        Session} from '../model'
 
 const modelExists =()=>{
   Bank.find({}, async(err, result) => {
@@ -196,12 +197,26 @@ const modelExists =()=>{
       await Follow.deleteMany({})
     }
   });
+
+  Session.find({}, async(err, result)=> {
+    if (result.length > 0) {
+      console.log('Found Session');
+    } else {
+      console.log('Not found, creating');
+      let newSession = new Session({});
+      await newSession.save();
+
+      await Session.deleteMany({})
+    }
+  });
+
 }
 
 // TODO: initial and connect to MongoDB
 mongoose.Promise = global.Promise;
 // mongoose.connect("YOUR_MONGODB_URI", { useNewUrlParser: true });
 
+// console.log("process.env.MONGO_URI :", process.env)
 // uri
 mongoose.connect(
   "mongodb://mongo1:27017,mongo2:27017,mongo3:27017/bl?replicaSet=rs",
@@ -210,6 +225,7 @@ mongoose.connect(
     useFindAndModify: false, // optional
     useCreateIndex: true,
     useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 100000, // Defaults to 30000 (30 seconds)
   }
 );
 

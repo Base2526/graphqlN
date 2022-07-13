@@ -21,6 +21,8 @@ import BasicContentModel from "./BasicContentModel"
 
 import FollowModel from "./FollowModel"
 
+import SessionModel from "./SessionModel"
+
 module.exports =  {
     Bank:BankModel,
     Post:PostModel,
@@ -44,5 +46,7 @@ module.exports =  {
 
     BasicContent: BasicContentModel,
 
-    Follow: FollowModel
+    Follow: FollowModel,
+
+    Session: SessionModel
 };

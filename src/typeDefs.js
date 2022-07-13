@@ -48,6 +48,7 @@ export default gql`
   input LoginInput {
     username: String!
     password: String!
+    deviceAgent: String
   }
 
   input LoginWithSocialInput{
@@ -70,6 +71,7 @@ export default gql`
   type UserPayLoad {
     status:Boolean
     messages:String
+    token:String
     executionTime:String
     data:User
   }
@@ -413,12 +415,12 @@ export default gql`
   }
 
   type Query {
-    Homes(page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
+    homes(page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
 
     room(_id: ID!): RoomPayLoad
     rooms: RoomsPayLoad
 
-    User(_id: ID!): UserPayLoad
+    user(_id: ID!): UserPayLoad
     Users(page: Int, perPage: Int): UsersPayLoad
     getManyUsers(_ids: [ID!]!): UsersPayLoad
     FindUser(filter: PostFilter): UsersPayLoad
@@ -439,12 +441,12 @@ export default gql`
     Sockets(page: Int, perPage: Int): SocketsPayLoad
     getManySockets(_ids: [ID!]!): SocketsPayLoad
 
-    Post(_id: ID!): PostPayLoad
-    Posts(page: Int, perPage: Int ): PostsPayLoad
+    post(_id: ID!): PostPayLoad
+    posts(page: Int, perPage: Int ): PostsPayLoad
     _allPostsMeta(page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): ListMetadata
     getManyPosts(_ids: [ID!]!): PostsPayLoad
 
-    postsByUserId(userId: ID!): PostsPayLoad
+    postsByUser(userId: ID!): PostsPayLoad
   
     
     comment(postId: ID!): CommentPayLoad
@@ -478,6 +480,9 @@ export default gql`
     isFollow(userId: ID!, friendId: ID!): FollowPayLoad
     follower(userId: ID!): UsersPayLoad
     followingByUserId(userId: ID!): FollowsPayLoad
+
+
+    currentNumber: Int
   }  
   
   input RoomInput {
@@ -628,10 +633,6 @@ export default gql`
   }
 
   type Mutation {
-    # createRoom(input: RoomInput): Room
-    # updateRoom(_id: ID!, input: RoomInput): Room
-    # deleteRoom(_id: ID!): Room
-
     login(input: LoginInput): UserPayLoad
     loginWithSocial(input: LoginWithSocialInput): LoginWithSocial
 
@@ -665,7 +666,7 @@ export default gql`
     deleteComments(_ids: [ID!]!): deleteType
 
 
-    createBookmark(input: BookmarkInput): Bookmark
+    createAndUpdateBookmark(input: BookmarkInput): Bookmark
 
     createContactUs(input: ContactUsInput): ContactUs
 
@@ -690,6 +691,10 @@ export default gql`
 
 
     createAndUpdateFollow(input: FollowInput): Follow
+  }
+
+  type Subscription {
+    numberIncremented: Int
   }
 
   type deleteType {
