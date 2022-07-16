@@ -28,11 +28,7 @@ const pubsub = new PubSub();
 export default {
   Query: {
 
-    currentNumber() {
-      let currentNumber = Math.floor(Math.random() * 1000);
-      pubsub.publish("NUMBER_INCREMENTED", { numberIncremented: currentNumber });
-      return currentNumber;
-    },
+   
 
     // user
     async user(parent, args, context, info) {
@@ -930,6 +926,13 @@ export default {
     
   },
   Mutation: {
+
+    async currentNumber(parent, args, context, info) {
+      let currentNumber = Math.floor(Math.random() * 1000);
+      pubsub.publish("NUMBER_INCREMENTED", { numberIncremented: currentNumber });
+      return currentNumber;
+    },
+
     // Login & Logout
     async login(parent, args, context, info) {
 
@@ -1488,8 +1491,14 @@ export default {
 
   Subscription:{
     numberIncremented: {
+      resolve: (payload) => 122,
       subscribe: () => pubsub.asyncIterator(["NUMBER_INCREMENTED"]),
     },
+
+    // commentAdded: {
+    //   subscribe: () => pubsub.asyncIterator(["NUMBER_INCREMENTED"]),
+    // },
+
   }
 
   // commentAdded

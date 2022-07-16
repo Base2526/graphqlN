@@ -62,26 +62,38 @@ async function startApolloServer(typeDefs, resolvers) {
     const server = new ApolloServer({
         schema,
         plugins: [
-        // Proper shutdown for the HTTP server.
-        ApolloServerPluginDrainHttpServer({ httpServer }),
-    
-        // Proper shutdown for the WebSocket server.
-        {
-            async serverWillStart() {
-            return {
-                async drainServer() {
-                await serverCleanup.dispose();
+            // Proper shutdown for the HTTP server.
+            ApolloServerPluginDrainHttpServer({ httpServer }),
+        
+            // Proper shutdown for the WebSocket server.
+            {
+                async serverWillStart() {
+                return {
+                    async drainServer() {
+                    await serverCleanup.dispose();
+                    },
+                };
                 },
-            };
             },
-        },
         ],
+
+        // subscriptions: {
+        //     path: "/subscriptions",
+        //     onConnect: () => {
+        //       console.log("Client connected for subscriptions");
+        //     },
+        //     onDisconnect: () => {
+        //       console.log("Client disconnected from subscriptions");
+        //     },
+        // },
     });
   
 
     await server.start();
     server.applyMiddleware({ app });
 
+    // server.installSubscriptionHandlers(httpServer);
+    
     // Now that our HTTP server is fully set up, actually listen.
     httpServer.listen(PORT, () => {
     console.log(

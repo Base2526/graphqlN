@@ -482,7 +482,7 @@ export default gql`
     followingByUserId(userId: ID!): FollowsPayLoad
 
 
-    currentNumber: Int
+    
   }  
   
   input RoomInput {
@@ -691,6 +691,8 @@ export default gql`
 
 
     createAndUpdateFollow(input: FollowInput): Follow
+
+    currentNumber: Int
   }
 
   type Subscription {
