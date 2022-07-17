@@ -1495,9 +1495,11 @@ export default {
       subscribe: () => pubsub.asyncIterator(["NUMBER_INCREMENTED"]),
     },
 
-    // commentAdded: {
-    //   subscribe: () => pubsub.asyncIterator(["NUMBER_INCREMENTED"]),
-    // },
+    postCreated: {
+      // More on pubsub below
+      resolve: (payload) => 122,
+      subscribe: () => pubsub.asyncIterator(['POST_CREATED']),
+    },
 
   }
 

@@ -697,6 +697,7 @@ export default gql`
 
   type Subscription {
     numberIncremented: Int
+    postCreated: Int
   }
 
   type deleteType {

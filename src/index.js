@@ -56,11 +56,48 @@ async function startApolloServer(typeDefs, resolvers) {
         server: httpServer,
         path: "/graphql",
     });
-    const serverCleanup = useServer({ schema }, wsServer);
+
+    const getDynamicContext = async (ctx, msg, args) => {
+        // ctx is the graphql-ws Context where connectionParams live
+    //    if (ctx.connectionParams.authentication) {
+    //       const currentUser = await findUser(connectionParams.authentication);
+    //       return { currentUser };
+    //     }
+        // Otherwise let our resolvers know we don't have a current user
+
+        console.log("getDynamicContext :", ctx)
+
+        return { currentUser: null };
+    };
+
+    const serverCleanup = useServer({ 
+            schema,
+            context: (ctx, msg, args) => {
+                // Returning an object will add that information to our
+                // GraphQL context, which all of our resolvers have access to.
+
+                console.log("getDynamicContext >>> ")
+                return getDynamicContext(ctx, msg, args);
+            },
+            onConnect: async (ctx) => {
+                // Check authentication every time a client connects.
+                // if (tokenIsNotValid(ctx.connectionParams)) {
+                //   // You can return false to close the connection  or throw an explicit error
+                //   throw new Error('Auth token missing!');
+                // }
+                console.log("Connect!");
+            },
+            onDisconnect(ctx, code, reason) {
+                console.log("Disconnected!");
+            }
+        }, 
+        wsServer);
 
     // Set up ApolloServer.
     const server = new ApolloServer({
         schema,
+        csrfPrevention: true,
+        cache: "bounded",
         plugins: [
             // Proper shutdown for the HTTP server.
             ApolloServerPluginDrainHttpServer({ httpServer }),
@@ -86,6 +123,10 @@ async function startApolloServer(typeDefs, resolvers) {
         //       console.log("Client disconnected from subscriptions");
         //     },
         // },
+
+        context: async ({ req }) => {
+            console.log("ApolloServer context ", req.headers && req.headers.authorization)
+        }
     });
   
 
