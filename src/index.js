@@ -7,10 +7,17 @@ import { ApolloServerPluginDrainHttpServer } from "apollo-server-core";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { WebSocketServer } from "ws";
 import { useServer } from "graphql-ws/lib/use/ws";
+import { PubSub } from "graphql-subscriptions";
+import jwt from 'jsonwebtoken';
+
+
+import {Bank, Post, Role, User, Comment, Mail, Socket} from './model'
 
 import connection from './mongo' 
 import typeDefs from "./typeDefs";
 import resolvers from "./resolvers";
+
+let pubsub = new PubSub();
 
 let PORT = process.env.PORT || 4000;
 // const pubsub = new PubSub();
@@ -59,15 +66,34 @@ async function startApolloServer(typeDefs, resolvers) {
 
     const getDynamicContext = async (ctx, msg, args) => {
         // ctx is the graphql-ws Context where connectionParams live
-    //    if (ctx.connectionParams.authentication) {
-    //       const currentUser = await findUser(connectionParams.authentication);
-    //       return { currentUser };
-    //     }
+       if (ctx.connectionParams.authToken) {
+            //   const currentUser = await findUser(connectionParams.authentication);
+            //   return { currentUser };
+
+            try {
+                let userId  = jwt.verify(ctx.connectionParams.authToken, process.env.JWT_SECRET);
+
+                // code
+                // -1 : foce logout
+                //  0 : anonymums
+                //  1 : OK
+
+                // {status: true, code: 1, data}
+
+                let currentUser = await User.findById(userId)
+                
+                // console.log("currentUser >> " , currentUser._id)
+                return {...ctx, currentUser} 
+            } catch(err) {
+                // logger.error(err.toString());
+                console.log(">> ", err.toString())
+            }
+        }
         // Otherwise let our resolvers know we don't have a current user
 
-        console.log("getDynamicContext :", ctx)
+        console.log("getDynamicContext :", ctx.connectionParams.authToken)
 
-        return { currentUser: null };
+        return { ...ctx, currentUser: null };
     };
 
     const serverCleanup = useServer({ 
@@ -75,8 +101,6 @@ async function startApolloServer(typeDefs, resolvers) {
             context: (ctx, msg, args) => {
                 // Returning an object will add that information to our
                 // GraphQL context, which all of our resolvers have access to.
-
-                console.log("getDynamicContext >>> ")
                 return getDynamicContext(ctx, msg, args);
             },
             onConnect: async (ctx) => {
@@ -125,7 +149,43 @@ async function startApolloServer(typeDefs, resolvers) {
         // },
 
         context: async ({ req }) => {
-            console.log("ApolloServer context ", req.headers && req.headers.authorization)
+            // console.log("ApolloServer context ", req.headers && req.headers.authorization)
+
+            // https://daily.dev/blog/authentication-and-authorization-in-graphql
+            // throw Error("throw Error(user.msg);");
+
+            // const decode = jwt.verify(token, 'secret');
+
+            if (req.headers && req.headers.authorization) {
+                var auth    = req.headers.authorization;
+                var parts   = auth.split(" ");
+                var bearer  = parts[0];
+                var token   = parts[1];
+
+                if (bearer == "Bearer") {
+                    // let decode = jwt.verify(token, process.env.JWT_SECRET);
+
+                    try {
+                        let userId  = jwt.verify(token, process.env.JWT_SECRET);
+
+                        // code
+                        // -1 : foce logout
+                        //  0 : anonymums
+                        //  1 : OK
+
+                        // {status: true, code: 1, data}
+
+                        let currentUser = await User.findById(userId)
+                        
+                        // console.log("context >> " , data._id)
+                        return {...req, pubsub, currentUser} 
+                    } catch(err) {
+                        // logger.error(err.toString());
+                        console.log(">> ", err.toString())
+                    }
+                }
+            }
+            return {...req, pubsub, currentUser: null}
         }
     });
   

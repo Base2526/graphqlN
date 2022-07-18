@@ -660,7 +660,7 @@ export default gql`
     deleteMail(_id: ID!): Mail
     deleteMails(_ids: [ID!]!): deleteType
 
-    createComment(input: CommentInput): Comment
+    createAndUpdateComment(input: CommentInput): Comment
     updateComment(_id: ID!, input: CommentInput): Comment
     deleteComment(_id: ID!): Comment
     deleteComments(_ids: [ID!]!): deleteType
@@ -696,8 +696,23 @@ export default gql`
   }
 
   type Subscription {
-    numberIncremented: Int
+    numberIncremented(postIDs: String): Int
     postCreated: Int
+
+    subPost(postIDs: String): PostSubscriptionPayload!
+
+    subComment(commentID: String): CommentSubscriptionPayload!
+  }
+
+  type PostSubscriptionPayload {
+    mutation: String!
+    data: Post!
+  }
+
+  type CommentSubscriptionPayload {
+    mutation: String!
+    commentID: String!
+    data: [CommentParent]!
   }
 
   type deleteType {

@@ -1,5 +1,7 @@
-import { PubSub } from "graphql-subscriptions";
 import jwt from 'jsonwebtoken';
+
+import { PubSub, withFilter } from 'graphql-subscriptions';
+import _ from "lodash";
 
 import {Bank, 
         Post, 
@@ -21,15 +23,12 @@ import {Bank,
 import {emailValidate} from './utils'
 
 // const logger = require('./utils/logger');
-const _ = require("lodash");
 
-const pubsub = new PubSub();
+
+let pubsub = new PubSub();
 
 export default {
   Query: {
-
-   
-
     // user
     async user(parent, args, context, info) {
       let start = Date.now()
@@ -225,17 +224,26 @@ export default {
         // foce logout
       }
 
+      let start = Date.now()
+
       let { _id } = args
       let data = await Post.findById(_id);
+
+      // console.log("post :", data, _id)
       return {
         status:true,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`,
         data
       }
     },
-    async posts(root, {
-      page,
-      perPage
-    }) {
+    async posts(parent, args, context, info) {
+
+      let {currentUser} = context
+      
+      console.log("posts currentUser :", currentUser)
+      let { page, perPage } = args
 
       let start = Date.now()
 
@@ -245,8 +253,8 @@ export default {
                     (Date.now() - start) / 1000
                   } seconds` )
 
-      let data = await  Post.find({}).limit(perPage).skip(page); 
-      let total = (await Post.find().lean().exec()).length;
+      let data = await  Post.find({ownerId: currentUser._id}).limit(perPage).skip(page); 
+      let total = (await Post.find({ownerId: currentUser._id}).lean().exec()).length;
 
       return {
         status:true,
@@ -541,16 +549,16 @@ export default {
     // Socket
 
     // Comment 
-    async comment(root, {
-      postId
-    }) {
+    async comment(parent, args, context, info) {
       let start = Date.now()
 
+      let { postId } = args
       // console.log("Comment: ", postId)
 
       let data = await Comment.findOne({postId: postId});
 
       // console.log("Comment > data : ", data)
+      
       return {
         status:true,
         data: _.isEmpty(data) ? [] : data.data,
@@ -929,7 +937,8 @@ export default {
 
     async currentNumber(parent, args, context, info) {
       let currentNumber = Math.floor(Math.random() * 1000);
-      pubsub.publish("NUMBER_INCREMENTED", { numberIncremented: currentNumber });
+
+      pubsub.publish("NUMBER_INCREMENTED", { numberIncrementedx: currentNumber });
       return currentNumber;
     },
 
@@ -1039,26 +1048,60 @@ export default {
       input
     }) {
       console.log("createPost")
-      return await Post.create(input);
+
+      let post = await Post.create(input);
+
+      pubsub.publish('POST', {
+        post:{
+          mutation: 'CREATED',
+          data: post
+        }
+      });
+
+      return post;
     },
 
     async updatePost(root, {
       _id,
       input
     }) {
-      console.log("updatePost :", _id )
-      return await Post.findOneAndUpdate({
-        _id
-      }, input, {
-        new: true
-      })
+      
+
+      let post = await Post.findOneAndUpdate({
+                    _id
+                  }, input, {
+                    new: true
+                  });
+
+      console.log("updatePost :", _id , post)
+
+      pubsub.publish("POST", {
+        post: {
+          mutation: "UPDATED",
+          data: post,
+        },
+      });
+
+      // pubsub.publish("NUMBER_INCREMENTED", { numberIncrementedx: currentNumber });
+
+      return post;
     },
 
     async deletePost(root, {
       _id
     }) {
       console.log("deletePost :", _id)
-      return await Post.findByIdAndRemove({_id})
+
+      let post = await Post.findByIdAndRemove({_id})
+
+      pubsub.publish('POST', {
+        post:{
+            mutation: 'DELETED',
+            data: post
+        }
+      });
+      
+      return post;
     },
 
     // deletePosts
@@ -1221,27 +1264,9 @@ export default {
     // mail
 
     // comment
-    async createComment(root, {
-      input
-    }) {
+    async createAndUpdateComment(parent, args, context, info) {
 
-      /*
-      console.log("createComment :", input.postId)
-
-      let result = await Comment.findOneAndUpdate({
-        postId: input.postId
-      }, input, {
-        new: true
-      })
-     
-      if(result === null){
-        result = await Comment.create(input);
-      }
-
-      console.log("createComment result :", result)
-
-      return result
-      */
+      let {input} = args
 
       let start = Date.now()
 
@@ -1253,10 +1278,24 @@ export default {
       
       if(result === null){
         result = await Comment.create(input);
-      }
 
-      console.log("createComment : ", result)
-                  
+        pubsub.publish("COMMENT", {
+          comment: {
+            mutation: "CREATE",
+            commentID: input.postId,
+            data: result.data,
+          },
+        });
+      }else{
+        pubsub.publish("COMMENT", {
+          comment: {
+            mutation: "UPDATED",
+            commentID: input.postId,
+            data: result.data,
+          },
+        });
+      }
+                
       return {
         status:true,
         data: result.data,
@@ -1488,18 +1527,87 @@ export default {
       return result;
     },
   },
-
   Subscription:{
     numberIncremented: {
-      resolve: (payload) => 122,
-      subscribe: () => pubsub.asyncIterator(["NUMBER_INCREMENTED"]),
+      resolve: (payload) =>{
+        console.log("payload :", payload)
+        return 1234
+      },
+      subscribe: (parent, args, context, info) =>{
+        console.log("parent, args, context, info > :", parent, args, context)
+        return pubsub.asyncIterator(["NUMBER_INCREMENTED"])
+      } ,
+
+      /*
+      // subscribe: withFilter((parent, args, context, info) => {
+      //   console.log("parent, args, context, info :", parent, args, context)
+      //   return context.pubsub.asyncIterator(["NUMBER_INCREMENTED"])
+      // },
+      // (payload, variables) => {
+      //   console.log(">>>>>>>>>>>>>>>>>>> ", payload, variables)
+
+      //   return payload.channelId === variables.channelId;
+      // })
+      */
     },
+    // withFilter
 
     postCreated: {
       // More on pubsub below
       resolve: (payload) => 122,
-      subscribe: () => pubsub.asyncIterator(['POST_CREATED']),
+      subscribe: (parent, args, context, info) =>{
+        return pubsub.asyncIterator(['POST_CREATED'])
+      } ,
     },
+
+    subPost:{
+
+      resolve: (payload) =>{
+        // console.log("subPost : >>>>>>>>>>>>>>>>>>> payload : ", payload)
+        return payload.post
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          console.log("subPost : parent, args, context, info :", parent, args, context)
+          return pubsub.asyncIterator(["POST"])
+        }, (payload, variables) => {
+          let {mutation, data} = payload.post
+          switch(mutation){
+            case "CREATED":
+            case "UPDATED":
+            case "DELETED":
+              {
+                break;
+              }
+          }
+
+          return _.findIndex(JSON.parse(variables.postIDs), (o) => _.isMatch(o, data.id) ) > -1;
+        }
+      )
+    },
+
+    subComment:{
+
+      resolve: (payload) =>{
+        return payload.comment
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          console.log("subComment : parent, args, context, info :", parent, args, context)
+          return pubsub.asyncIterator(["COMMENT"])
+        }, (payload, variables) => {
+          let {mutation, commentID, data} = payload.comment
+          switch(mutation){
+            case "CREATED":
+            case "UPDATED":
+            case "DELETED":
+              {
+                break;
+              }
+          }
+
+          return commentID == variables.commentID;
+        }
+      )
+    }
 
   }
 
