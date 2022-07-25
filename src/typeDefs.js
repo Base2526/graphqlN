@@ -167,28 +167,29 @@ export default gql`
 
   type Conversation {
     _id: ID!
+    userId: String
+    name: String
+    lastSenderName: String
+    info: String
+    avatarSrc: String
+    avatarName: String
+    status: String
+    unreadCnt: Int
+    sentTime: DATETIME
     members: [String]
   }
 
   type Message {
     _id: ID!
-    conversationId: ID!
-    avatar: String
-    date: DATETIME
-    forwarded: Boolean
-    meeting: String
-    position: String
-    removeButton: Boolean
-    reply: String
-    replyButton: Boolean
-    retracted: Boolean
-    status: String
-    text: String
-    theme: String
-    title: String
-    titleColor: String
-    type: String
-    view: String
+    conversationId: String!
+    type: String!
+    message: String
+    sentTime: String
+    sender: String!
+    senderId: String!
+    direction: String!
+    position: String!
+    status: String!
   }
 
   type Mail {
@@ -466,13 +467,13 @@ export default gql`
 
 
     Shares(page: Int, perPage: Int): SharesPayLoad
-    ShareByPostId(postId: ID!, page: Int, perPage: Int): SharesPayLoad
+    shareByPostId(postId: ID!): SharesPayLoad
 
 
     Dblog(page: Int, perPage: Int): DblogPayLoad
 
-    conversations(userId: ID!): ConversationsPayLoad
-    message(_id: ID!): MessagePayLoad
+    conversations(userId: ID): ConversationsPayLoad
+    
 
     basicContent(_id: ID!): BasicContentPayLoad
     basicContents(page: Int, perPage: Int): BasicContentsPayLoad
@@ -482,7 +483,7 @@ export default gql`
     followingByUserId(userId: ID!): FollowsPayLoad
 
 
-    
+    fetchMessage(id: ID!): MessagePayLoad
   }  
   
   input RoomInput {
@@ -570,24 +571,26 @@ export default gql`
     friendId: ID!
   }
 
-  input MessageInput{
-    conversationId: ID!
-    avatar: String
-    date: DATETIME
-    forwarded: Boolean
-    meeting: String
-    position: String
-    removeButton: Boolean
-    reply: String
-    replyButton: Boolean
-    retracted: Boolean
-    status: String
-    text: String
-    theme: String
+  input UpdateConversationInput{
+    muted: Boolean
+    unread: Int
     title: String
-    titleColor: String
-    type: String
-    view: String
+    subtitle: String
+    alt: String
+    avatar: String
+  }
+
+  input MessageInput{
+    _id: String!
+    conversationId: String!
+    type: String!
+    message: String
+    sentTime: DATETIME
+    sender: String!
+    senderId: String!
+    direction: String!
+    position: String!
+    status: String!
   }
 
   input FileInput {
@@ -681,9 +684,11 @@ export default gql`
 
 
     createConversation(input: ConversationInput): Conversation
+    updateConversation(_id: ID!, input: UpdateConversationInput): Conversation
 
 
-    addMessage(input: MessageInput) : Message
+    
+    addMessage(_id: ID!, input: MessageInput) : Message
 
 
     createBasicContent(input: BasicContentInput): BasicContent
@@ -700,8 +705,12 @@ export default gql`
     postCreated: Int
 
     subPost(postIDs: String): PostSubscriptionPayload!
-
     subComment(commentID: String): CommentSubscriptionPayload!
+    subBookmark(userId: ID!, postId: ID!): BookmarkSubscriptionPayload!
+    subShare(postId: ID!): ShareSubscriptionPayload!
+
+    subConversation(userId: ID!): ConversationSubscriptionPayload!
+    subMessage(id: ID!): MessageSubscriptionPayload!
   }
 
   type PostSubscriptionPayload {
@@ -713,6 +722,26 @@ export default gql`
     mutation: String!
     commentID: String!
     data: [CommentParent]!
+  }
+
+  type BookmarkSubscriptionPayload {
+    mutation: String!
+    data: Bookmark!
+  }
+
+  type ShareSubscriptionPayload {
+    mutation: String!
+    data: Share!
+  }
+
+  type ConversationSubscriptionPayload{
+    mutation: String!
+    data: Conversation!
+  }
+
+  type MessageSubscriptionPayload{
+    mutation: String!
+    data: Message!
   }
 
   type deleteType {

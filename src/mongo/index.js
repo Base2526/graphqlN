@@ -179,7 +179,7 @@ const modelExists =()=>{
       console.log('Found Message');
     } else {
       console.log('Not found, creating');
-      let newMessage = new Message({});
+      let newMessage = new Message({_id: mongoose.Types.ObjectId()});
       await newMessage.save();
 
       await Message.deleteMany({})

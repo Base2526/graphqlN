@@ -10,7 +10,6 @@ import { useServer } from "graphql-ws/lib/use/ws";
 import { PubSub } from "graphql-subscriptions";
 import jwt from 'jsonwebtoken';
 
-
 import {Bank, Post, Role, User, Comment, Mail, Socket} from './model'
 
 import connection from './mongo' 
@@ -91,7 +90,7 @@ async function startApolloServer(typeDefs, resolvers) {
         }
         // Otherwise let our resolvers know we don't have a current user
 
-        console.log("getDynamicContext :", ctx.connectionParams.authToken)
+        // console.log("getDynamicContext :", ctx.connectionParams.authToken)
 
         return { ...ctx, currentUser: null };
     };

@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-import { PubSub, withFilter } from 'graphql-subscriptions';
+import { withFilter } from 'graphql-subscriptions';
 import _ from "lodash";
 
 import {Bank, 
@@ -25,7 +25,10 @@ import {emailValidate} from './utils'
 // const logger = require('./utils/logger');
 
 
-let pubsub = new PubSub();
+// let pubsub = new PubSub();
+// pubsub.ee.setMaxListeners(100);
+
+import pubsub from './pubsub'
 
 export default {
   Query: {
@@ -660,11 +663,11 @@ export default {
       }
     },
 
-    async isBookmark(root, {
-      userId,
-      postId
-    }) {
+    async isBookmark(parent, args, context, info) {
       let start = Date.now()
+
+      let { userId, postId } = args
+
       let data =await Bookmark.findOne({ userId, postId });
 
       return {
@@ -677,10 +680,10 @@ export default {
     },
 
     // 
-    async bookmarksByUserId(root, {
-      userId
-    }) {
+    async bookmarksByUserId(parent, args, context, info) {
       let start = Date.now()
+      let { userId } = args
+
       let data  = await Bookmark.find({ userId, status:true });
       return {
         status:true,
@@ -841,13 +844,11 @@ export default {
       }
     },
 
-    async ShareByPostId(root, {
-      postId,
-      page,
-      perPage
-    }) {
+    async shareByPostId(parent, args, context, info) {
 
       let start = Date.now()
+
+      let { postId } = args
       // console.log("ShareByPostId  postId: ", postId,
       //             ", page : ", page, 
       //             ", perPage : ", perPage, 
@@ -890,11 +891,15 @@ export default {
     },
 
     // 
-    async conversations(root, {
-      userId
-    }) {
+    async conversations(parent, args, context, info) {
 
       let start = Date.now()
+
+      let { userId } = args
+
+      if(!userId){
+        return;
+      }
 
       let data = await Conversation.find({
         members: { $all: [userId] },
@@ -909,20 +914,16 @@ export default {
       }
     },
 
-    // 
-    async message(root, {
-      _id
-    }) {
-
-      
+    async fetchMessage(parent, args, context, info) {
       let start = Date.now()
 
+      let { id } = args
+
       let data = await Message.find({
-        conversationId: _id,
+        conversationId: id,
       });
 
-      console.log("message : ", _id, data)
-
+      console.log("message : ", id, data)
       return {
         status:true,
         data,
@@ -931,6 +932,9 @@ export default {
         } seconds`
       }
     },
+
+    // 
+    
     
   },
   Mutation: {
@@ -1370,6 +1374,21 @@ export default {
      
       if(result === null){
         result = await Bookmark.create(input);
+
+        pubsub.publish("BOOKMARK", {
+          bookmark: {
+            mutation: "CREATE",
+            data: result,
+          },
+        });
+      }else{
+
+        pubsub.publish("BOOKMARK", {
+          bookmark: {
+            mutation: "UPDATED",
+            data: result,
+          },
+        });
       }
 
       return result;
@@ -1476,41 +1495,119 @@ export default {
       return await ContactUs.create(input);
     },
 
-    async createShare(root, {
-      input
-    }) {
-      console.log("createShare")
+    async createShare(parent, args, context, info) {
 
-      return await Share.create(input);
+      let {input} = args
+      let share = await Share.create(input);
+
+      console.log("createShare :", share)
+
+      pubsub.publish("SHARE", {
+        share: {
+          mutation: "CREATE",
+          data: share,
+        },
+      });
+
+      return share;
     },
 
-    async createConversation(root, {
-      input
-    }) {
+    async createConversation(parent, args, context, info) {
+
+      let {input} = args
       console.log("createConversation params : ", input)
+
+      /*
+      muted: Boolean
+      unread: Int
+      title: String
+      subtitle: String
+      alt: String
+      avatar: String
+      date: DATETIME
+      */
 
       let result= await Conversation.findOne({
         members: { $all: [input.userId, input.friendId] },
       });
 
+      let friend = await User.findById(input.friendId);
+
+      /*
+      id: "1",
+      name:"Lilly",
+      lastSenderName:"Lilly",
+      info:"Yes i can do it for you",
+      avatarSrc: avatarIco,
+      avatarName: "Lilly",
+      status: "available",
+      unreadCnt: 0,
+      sentTime: "15 mins ago",
+      */
+
       if(result === null){
         result = await Conversation.create({
+          name: friend.displayName,
+          lastSenderName:"",
+          info:"",
+          avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+          avatarName: friend.displayName,
+          status: "available",
+          unreadCnt: 0,
+          sentTime: Date.now(),
+          userId: input.friendId,
           members: [input.userId, input.friendId],
+          
+        });
+
+        pubsub.publish("CONVERSATION", {
+          conversation: {
+            mutation: "CREATE",
+            data: result,
+          },
+        });
+      }else{
+        pubsub.publish("CONVERSATION", {
+          conversation: {
+            mutation: "UPDATED",
+            data: result,
+          },
         });
       }
+      
+      console.log("createConversation friend : ", friend, result)
 
-      console.log("createConversation result : ", result)
+      return result;
+    },
+
+    async updateConversation(parent, args, context, info) {
+
+      let {_id, input} = args
+
+      let result = await Conversation.findOneAndUpdate({
+        _id
+      }, input, {
+        new: true
+      })
+
+      pubsub.publish("CONVERSATION", {
+        conversation: {
+          mutation: "UPDATED",
+          data: result,
+        },
+      });
+
+      console.log("updateConversation friend : ", result)
 
       return result;
     },
 
     // 
-    async addMessage(root, {
-      input
-    }) {
-      console.log("addMessage params : ", input)
+    async addMessage(parent, args, context, info) {
 
-      // let result= await Conversation.findOne({
+      let { _id, input } = args
+
+      // let result= await Conversation.findOne({fetchMessage
       //   members: { $all: [input.userId, input.friendId] },
       // });
 
@@ -1520,9 +1617,37 @@ export default {
       //   });
       // }
 
-      // console.log("createConversation result : ", result)
 
-      let result = await Message.create(input);
+      let result = await Message.findById(input._id);
+      
+      if(_.isEmpty(result)){
+        input = {...input, conversationId: _id, sentTime: Date.now(), status: "sent"}
+         
+        result = await Message.create(input);
+
+        pubsub.publish('MESSAGE', {
+          message:{
+            mutation: 'CREATED',
+            data: result
+          }
+        });
+      }
+
+      let conversat = await Conversation.findOneAndUpdate({
+        _id
+      }, {
+        lastSenderName: input.sender,
+        info : input.message,
+      }, {
+        new: true
+      })
+
+      pubsub.publish("CONVERSATION", {
+        conversation: {
+          mutation: "UPDATED",
+          data: conversat,
+        },
+      });
 
       return result;
     },
@@ -1567,7 +1692,7 @@ export default {
         return payload.post
       },
       subscribe: withFilter((parent, args, context, info) => {
-          console.log("subPost : parent, args, context, info :", parent, args, context)
+          // console.log("subPost : parent, args, context, info :", parent, args, context)
           return pubsub.asyncIterator(["POST"])
         }, (payload, variables) => {
           let {mutation, data} = payload.post
@@ -1584,14 +1709,13 @@ export default {
         }
       )
     },
-
     subComment:{
 
       resolve: (payload) =>{
         return payload.comment
       },
       subscribe: withFilter((parent, args, context, info) => {
-          console.log("subComment : parent, args, context, info :", parent, args, context)
+          // console.log("subComment : parent, args, context, info :", parent, args, context)
           return pubsub.asyncIterator(["COMMENT"])
         }, (payload, variables) => {
           let {mutation, commentID, data} = payload.comment
@@ -1607,8 +1731,97 @@ export default {
           return commentID == variables.commentID;
         }
       )
-    }
+    },
+    subBookmark: {
+      resolve: (payload) =>{
+        return payload.bookmark
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["BOOKMARK"])
+        }, (payload, variables) => {
+          let {mutation, data} = payload.bookmark
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       break;
+          //     }
+          // }
+          return data.postId == variables.postId && data.userId == variables.userId;
+        }
+      )
+    },
+    subShare: {
+      resolve: (payload) =>{
+        return payload.share
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["SHARE"])
+        }, (payload, variables) => {
+          let {mutation, data} = payload.share
 
+          // console.log("subShare: ", data, payload, variables)
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       break;
+          //     }
+          // }
+          return data.postId == variables.postId;
+        }
+      )
+    },
+    subConversation: {
+      resolve: (payload) =>{
+        return payload.conversation
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["CONVERSATION"])
+        }, (payload, variables) => {
+          let {mutation, data} = payload.conversation
+
+          console.log("CONVERSATION: ", data, payload, variables)
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       break;
+          //     }
+          // }
+
+          return _.findIndex(data.members, (o) => o == variables.userId ) > -1
+        }
+      )
+    },
+
+    subMessage: {
+      resolve: (payload) =>{
+        return payload.message
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["MESSAGE"])
+        }, (payload, variables) => {
+          let {mutation, data} = payload.message
+          console.log("========= subMessage #1 =========")
+          console.log("MESSAGE: ", data, payload, variables)
+          console.log("========= subMessage #2 =========")
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       break;
+          //     }
+          // }
+
+          return data.conversationId === variables.id 
+        }
+      )
+    }
   }
 
   // commentAdded
