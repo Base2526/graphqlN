@@ -11,7 +11,11 @@ import {Bank,
       
         tContactUs,
         Share,
-        Dblog} from '../model'
+        Dblog,
+        Conversation,
+        Message,
+        Follow,
+        Session} from '../model'
 
 const modelExists =()=>{
   Bank.find({}, async(err, result) => {
@@ -157,12 +161,62 @@ const modelExists =()=>{
       await Dblog.deleteMany({})
     }
   });
+
+  Conversation.find({}, async(err, result)=> {
+    if (result.length > 0) {
+      console.log('Found Conversation');
+    } else {
+      console.log('Not found, creating');
+      let newConversation = new Conversation({});
+      await newConversation.save();
+
+      await Conversation.deleteMany({})
+    }
+  });
+
+  Message.find({}, async(err, result)=> {
+    if (result.length > 0) {
+      console.log('Found Message');
+    } else {
+      console.log('Not found, creating');
+      let newMessage = new Message({_id: mongoose.Types.ObjectId()});
+      await newMessage.save();
+
+      await Message.deleteMany({})
+    }
+  });
+
+  Follow.find({}, async(err, result)=> {
+    if (result.length > 0) {
+      console.log('Found Follow');
+    } else {
+      console.log('Not found, creating');
+      let newFollow = new Follow({});
+      await newFollow.save();
+
+      await Follow.deleteMany({})
+    }
+  });
+
+  Session.find({}, async(err, result)=> {
+    if (result.length > 0) {
+      console.log('Found Session');
+    } else {
+      console.log('Not found, creating');
+      let newSession = new Session({});
+      await newSession.save();
+
+      await Session.deleteMany({})
+    }
+  });
+
 }
 
 // TODO: initial and connect to MongoDB
 mongoose.Promise = global.Promise;
 // mongoose.connect("YOUR_MONGODB_URI", { useNewUrlParser: true });
 
+// console.log("process.env.MONGO_URI :", process.env)
 // uri
 mongoose.connect(
   "mongodb://mongo1:27017,mongo2:27017,mongo3:27017/bl?replicaSet=rs",
@@ -171,6 +225,7 @@ mongoose.connect(
     useFindAndModify: false, // optional
     useCreateIndex: true,
     useUnifiedTopology: true,
+    serverSelectionTimeoutMS: 100000, // Defaults to 30000 (30 seconds)
   }
 );
 

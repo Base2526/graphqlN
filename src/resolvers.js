@@ -1,3 +1,8 @@
+import jwt from 'jsonwebtoken';
+
+import { withFilter } from 'graphql-subscriptions';
+import _ from "lodash";
+
 import {Bank, 
         Post, 
         Role, 
@@ -9,88 +14,39 @@ import {Bank,
         ContactUs, 
         tContactUs, 
         Share, 
-        Dblog} from './model'
+        Dblog,
+        Conversation,
+        Message,
+        BasicContent,
+        Follow,
+        Session} from './model'
 import {emailValidate} from './utils'
 
-const _ = require("lodash");
+// const logger = require('./utils/logger');
+
+
+// let pubsub = new PubSub();
+// pubsub.ee.setMaxListeners(100);
+
+import pubsub from './pubsub'
 
 export default {
   Query: {
-
-    // Login & Logout
-    async Login(root, {
-      username, 
-      password
-    }) {
-      let start = Date.now()
-
-     
-
-      // let user = null;
-      // if(emailValidate().test(username)){
-      //   user = await User.findOne({email: username})
-      // }else{
-      //   user = await User.findOne({username})
-      // }
-
-      let user = emailValidate().test(username) ?  await User.findOne({email: username}) : await User.findOne({username})
-
-      if(user === null){
-        return {
-          status: false,
-          messages: "xxx", 
-          data:{
-            _id: "",
-            username: "",
-            password: "",
-            email: "",
-            displayName: "",
-            roles:[]
-          },
-          executionTime: `Time to execute = ${
-            (Date.now() - start) / 1000
-          } seconds`
-        }
-      }
-
-      // update lastAccess
-      await User.findOneAndUpdate({
-        _id: user._doc._id
-      }, {
-        lastAccess: Date.now()
-      }, {
-        new: true
-      })
-
-      user = emailValidate().test(username) ?  await User.findOne({email: username}) : await User.findOne({username})
-
-      let roles = await Promise.all(_.map(user.roles, async(_id)=>{
-        let role = await Role.findById(_id)
-        console.log("_id", _id, role)
-        return role.name
-      }))
-      user = {...user._doc,  roles}
-
-      console.log("Login vvv", user )
-
-      return {
-        status: true,
-        messages: "", 
-        data: user,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
-      }
-    },
-    // Login & Logout
-
     // user
-    async User(root, {
-      _id
-    }) {
+    async user(parent, args, context, info) {
       let start = Date.now()
 
-      console.log("User : >> ", _id)
+      if(!context.status){
+        // foce logout
+      }
+
+      let {_id} = args
+
+      if(_.isEmpty(_id)){
+        return;
+      }
+
+      // console.log("User : >> ", _id)
       let data = await User.findById(_id);
       return {
         status:true,
@@ -108,17 +64,17 @@ export default {
 
       let start = Date.now()
 
-      console.log("users: page : ", page,
-                  ", perPage : ", perPage,
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
+      // console.log("users: page : ", page,
+      //             ", perPage : ", perPage,
+      //             `Time to execute = ${
+      //               (Date.now() - start) / 1000
+      //             } seconds` )
 
       // let data = await User.find();
       let data = await  User.find({}).limit(perPage).skip(page); //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
       
       let total = (await User.find({})).length;//.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      console.log("total  ", total)
+      // console.log("total  ", total)
 
       return {
         status:true,
@@ -173,30 +129,144 @@ export default {
     // user
 
     // homes
-    async Homes(root, {
-      page,
-      perPage, 
-      keywordSearch, 
-      category
-    }) {
+    async homes(parent, args, context, info) {
+      let {
+        userId,
+        page,
+        perPage, 
+        keywordSearch, 
+        category
+      } = args
 
       let start = Date.now()
 
-      console.log("Homes: page : ", page,
+      if(_.isEmpty(userId)){
+        
+      }
+
+      // console.log("Homes: page : ", page,
+      //             ", perPage : ", perPage, 
+      //             ", keywordSearch : ", keywordSearch,
+      //             ", category : ", category , 
+      //             `Time to execute = ${
+      //               (Date.now() - start) / 1000
+      //             } seconds` )
+
+      
+
+      /*
+      0 : ชื่อเรื่อง | title
+      1 : ชื่อ-นามสกุล บัญชีผู้รับเงินโอน | nameSubname
+      2 : เลขบัตรประชาชนคนขาย | idCard
+      3 : บัญชีธนาคาร | banks[]
+      4 : เบอร์โทรศัพท์ | tels[]
+      */
+
+      if(!context.status){
+        // foce logout
+      }
+
+      let data = null;
+      let total = 0;
+
+      let skip =  page == 0 ? page : (perPage * page) + 1;
+     
+      let p = 0;
+
+      // console.log("keywordSearch ::", !!keywordSearch, keywordSearch)
+      if(!!keywordSearch){
+        keywordSearch = keywordSearch.trim()
+        
+        category = category.split(',');
+
+        let regex = [];
+        if(category.includes("0")){
+          regex = [...regex, {title: { $regex: '.*' + keywordSearch + '.*', $options: 'i' } }]
+        }
+
+        if(category.includes("1")){
+          regex = [...regex, {nameSubname: { $regex: '.*' + keywordSearch + '.*', $options: 'i' } }]
+        }
+
+        if(category.includes("2")){
+          regex = [...regex, {idCard: { $regex: '.*' + keywordSearch + '.*', $options: 'i' } }]
+        }
+
+        if(category.includes("3")){
+          regex = [...regex, {"banks.bankAccountName": { $in: [keywordSearch] } }]
+        }
+
+        if(category.includes("4")){
+          regex = [...regex, {tels: { $in: [keywordSearch] } }]
+        }
+
+        console.log("regex :", regex)
+
+        data = await Post.find({ $or: regex }).limit(perPage).skip(skip);
+
+        p = (Date.now() - start) / 1000;
+        total = (await Post.find().lean().exec()).length; 
+      }else{
+        data = await Post.find().limit(perPage).skip(skip); 
+
+        p = (Date.now() - start) / 1000;
+        total = (await Post.find().lean().exec()).length;
+      }
+      console.log("total , skip :", total, skip)
+
+      let new_data = await Promise.all( _.map(data, async(v)=>{
+                        return {...v._doc, shares: await Share.find({postId: v._id})}
+                      }))
+
+      return {
+        status:true,
+        data: new_data,
+        total,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        }-${ p } seconds`,
+      }
+    },
+    // homes
+
+    // post
+    async post(parent, args, context, info) {
+
+      if(!context.status){
+        // foce logout
+      }
+
+      let start = Date.now()
+
+      let { _id } = args
+      let data = await Post.findById(_id);
+
+      // console.log("post :", data, _id)
+      return {
+        status:true,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`,
+        data
+      }
+    },
+    async posts(parent, args, context, info) {
+
+      let {currentUser} = context
+      
+      console.log("posts currentUser :", currentUser)
+      let { page, perPage } = args
+
+      let start = Date.now()
+
+      console.log("Posts: page : ", page,
                   ", perPage : ", perPage, 
-                  ", keywordSearch : ", keywordSearch,
-                  ", category : ", category, 
                   `Time to execute = ${
                     (Date.now() - start) / 1000
                   } seconds` )
 
-
-      let data = await  Post.find({}).limit(perPage).skip(page); //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
-      
-      let total = (await Post.find({})).length; //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      console.log("total  ", total)
-
-      // let data = await Post.find();
+      let data = await  Post.find({ownerId: currentUser._id.toString()}).limit(perPage).skip(page); 
+      let total = (await Post.find({ownerId: currentUser._id.toString()}).lean().exec()).length;
 
       return {
         status:true,
@@ -207,47 +277,19 @@ export default {
         } seconds`
       }
     },
-    // homes
-
-    // post
-    async Post(root, {
-      _id
-    }) {
-
-      
-      let data = await Post.findById(_id);
-
-      // console.log("Post: ", data)
-      return {
-        status:true,
-        data
-      }
-    },
-    async Posts(root, {
-      page,
-      perPage
+    async postsByUser(root, {
+      userId
     }) {
 
       let start = Date.now()
 
-      console.log("Posts: page : ", page,
-                  ", perPage : ", perPage, 
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
-
-
-      let data = await  Post.find({}).limit(perPage).skip(page); //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
+      // console.log("postsByUser : ", userId)
       
-      let total = (await Post.find({})).length; //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      console.log("total  ", total)
-
-      // let data = await Post.find();
-
+      let data = await  Post.find({ownerId: userId}); 
       return {
         status:true,
         data,
-        total,
+        total: data.length,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
         } seconds`
@@ -383,6 +425,36 @@ export default {
     },
     // Bank
 
+    // BasicContent
+    async basicContent(root, {
+      _id
+    }) {
+
+      let data = await BasicContent.findById(_id);
+      return {
+        status:true,
+        data
+      }
+    },
+    async basicContents(root, {
+      page,
+      perPage
+    }) {
+
+      let start = Date.now()
+
+      let data = await BasicContent.find();
+      
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+    // BasicContent
+
     // Mail
     async Mail(root, {
       _id
@@ -489,52 +561,49 @@ export default {
     // Socket
 
     // Comment 
-    async Comment(root, {
-      _id
-    }) {
-
-      let data = await Comment.findById(_id);
-      return {
-        status:true,
-        data
-      }
-    },
-    async Comments(root, {
-      page,
-      perPage, 
-      sortField,
-      sortOrder, 
-      filter
-    }) {
-
+    async comment(parent, args, context, info) {
       let start = Date.now()
 
-      console.log("Comments: page : ", page,
-                  ", perPage : ", perPage, 
-                  ", sortField : ", sortField,
-                  ", sortOrder : ", sortOrder, 
-                  ", filter : ", JSON.parse(JSON.stringify(filter)),
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
+      let { postId } = args
+      // console.log("Comment: ", postId)
 
-      // let data = await Comment.find();
+      let data = await Comment.findOne({postId: postId});
 
-      // let data = await User.find();
-      let data = await  Comment.find({}).limit(perPage).skip(page).sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
-
-      let total = (await Comment.find({}).sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      console.log("total  ", total)
-
+      // console.log("Comment > data : ", data)
+      
       return {
         status:true,
-        data,
-        total,
+        data: _.isEmpty(data) ? [] : data.data,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
         } seconds`
       }
     },
+    // async Comments(root, {
+    //   postId
+    // }) {
+
+    //   let start = Date.now()
+
+    //   console.log("Comments, postId : ", postId
+    //               `Time to execute = ${
+    //                 (Date.now() - start) / 1000
+    //               } seconds` )
+
+    //   let data = await  Comment.find({postId: postId});
+
+    //   let total = await  Comment.find({postId: postId});
+    //   console.log("total  ", total)
+
+    //   return {
+    //     status:true,
+    //     data,
+    //     total,
+    //     executionTime: `Time to execute = ${
+    //       (Date.now() - start) / 1000
+    //     } seconds`
+    //   }
+    // },
     async getManyReferenceComment(root, {
       postId,
       page,
@@ -589,14 +658,11 @@ export default {
       }
     },
 
-    async BookmarksByPostId(root, {
-      postId,
-      page,
-      perPage
+    async bookmarksByPostId(root, {
+      postId
     }) {
-      console.log("BookmarksByPostId : ", postId, page, perPage)
       let start = Date.now()
-      let data = await Bookmark.find({postId: postId});
+      let data  = await Bookmark.find({ postId });
       return {
         status:true,
         data,
@@ -605,6 +671,95 @@ export default {
         } seconds`
       }
     },
+
+    async isBookmark(parent, args, context, info) {
+      let start = Date.now()
+
+      let { userId, postId } = args
+
+      if(_.isEmpty(userId)){
+        return ;
+      }
+
+      let data =await Bookmark.findOne({ userId, postId });
+
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    // 
+    async bookmarksByUserId(parent, args, context, info) {
+      let start = Date.now()
+      let { userId } = args
+
+      let data  = await Bookmark.find({ userId, status:true });
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    // isFollow(userId: ID!, friendId: ID!): FollowPayLoad
+    async isFollow(root, {
+      userId,
+      friendId
+    }) {
+      let start = Date.now()
+      let data =await Follow.findOne({ userId, friendId });
+
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    async follower(root, {
+      userId
+    }) {
+
+      let start = Date.now()
+      let follows =await Follow.find({ friendId: userId, status: true  });
+
+      let data =  await Promise.all(_.map(follows, async(v)=>{ return await User.findById(v.userId) }))
+
+      return {
+        status:true,
+        data: data,
+        total: data.length,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    async followingByUserId(root, {
+      userId
+    }) {
+      console.log("followingByUserId : ", userId)
+      let start = Date.now()
+      let data =await Follow.find({ userId: userId, status: true  });
+
+      console.log("followingByUserId data : ", data)
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
 
     // 
     async ContactUsList(root, {
@@ -702,19 +857,17 @@ export default {
       }
     },
 
-    async ShareByPostId(root, {
-      postId,
-      page,
-      perPage
-    }) {
+    async shareByPostId(parent, args, context, info) {
 
       let start = Date.now()
-      console.log("ShareByPostId  postId: ", postId,
-                  ", page : ", page, 
-                  ", perPage : ", perPage, 
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
+
+      let { postId } = args
+      // console.log("ShareByPostId  postId: ", postId,
+      //             ", page : ", page, 
+      //             ", perPage : ", perPage, 
+      //             `Time to execute = ${
+      //               (Date.now() - start) / 1000
+      //             } seconds` )
 
       let data = await Share.find({postId: postId});
       return {
@@ -737,8 +890,10 @@ export default {
                   `Time to execute = ${
                     (Date.now() - start) / 1000
                   } seconds` )
+            
+      let skip =  page == 0 ? page : (perPage * page) + 1;
+      let data = await Dblog.find({}).limit(perPage).skip(skip);
 
-      let data = await Dblog.find();
       return {
         status:true,
         data,
@@ -747,14 +902,157 @@ export default {
         } seconds`
       }
     },
+
+    // 
+    async conversations(parent, args, context, info) {
+
+      let start = Date.now()
+      // let { currentUser } = context
+
+      // console.log("conversations :", currentUser)
+
+      // if(_.isEmpty(currentUser) ){
+      //   return;
+      // }
+
+      let { userId } = args
+
+      let data=  await Conversation.find({
+        "members.userId": { $all: [ userId ] }
+      });
+    
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    async fetchMessage(parent, args, context, info) {
+      let start = Date.now()
+
+      // let { currentUser } = context
+
+      // if(_.isEmpty(currentUser) ){
+      //   return;
+      // }
+
+      let { conversationId } = args
+
+      if(_.isEmpty(conversationId)){
+        return ;
+      }
+
+      let data = await Message.find({ conversationId });
+
+      // let newData = data.map(({ _id: id, ...rest }) => ({
+      //   id,
+      //   ...rest,
+      // }));
+
+      console.log("fetchMessage : ", conversationId)
+      return {
+        status:true,
+        data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+
+    // 
+    
     
   },
   Mutation: {
-    // user
-    async createUser(root, {
+
+    async currentNumber(parent, args, context, info) {
+      let currentNumber = Math.floor(Math.random() * 1000);
+
+      pubsub.publish("NUMBER_INCREMENTED", { numberIncrementedx: currentNumber });
+      return currentNumber;
+    },
+
+    // Login & Logout
+    async login(parent, args, context, info) {
+
+      let {input} = args
+
+      let start = Date.now()
+      let user = emailValidate().test(input.username) ?  await User.findOne({email: input.username}) : await User.findOne({username: input.username})
+
+      if(user === null){
+        return {
+          status: false,
+          messages: "xxx", 
+          data:{
+            _id: "",
+            username: "",
+            password: "",
+            email: "",
+            displayName: "",
+            roles:[]
+          },
+          executionTime: `Time to execute = ${
+            (Date.now() - start) / 1000
+          } seconds`
+        }
+      }
+
+      // update lastAccess
+      await User.findOneAndUpdate({
+        _id: user._doc._id
+      }, {
+        lastAccess : Date.now()
+      }, {
+        new: true
+      })
+
+      let roles = await Promise.all(_.map(user.roles, async(_id)=>{
+        let role = await Role.findById(_id)
+        return role.name
+      }))
+
+      user = { ...user._doc,  roles }
+      // console.log("Login : ", user )
+
+      let token = jwt.sign(user._id.toString(), process.env.JWT_SECRET)
+
+      input = {...input, token}
+      await Session.create(input);
+
+      return {
+        status: true,
+        messages: "", 
+        token,
+        data: user,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
+    },
+    // loginWithSocial
+    async loginWithSocial(root, {
       input
     }) {
-      console.log("createUser :", input)
+      console.log("loginWithSocial :", input)
+      // input = {...input, displayName: input.username}
+      // return await User.create(input);
+
+      return {_id: "12222"}
+    },
+    // user
+    async createUser(parent, args, context, info) {
+      
+      if(_.isEmpty(context)){
+        // logger.error(JSON.stringify(args));
+        return;
+      }
+
+      let {input} = args
+
       input = {...input, displayName: input.username}
       return await User.create(input);
     },
@@ -783,26 +1081,60 @@ export default {
       input
     }) {
       console.log("createPost")
-      return await Post.create(input);
+
+      let post = await Post.create(input);
+
+      pubsub.publish('POST', {
+        post:{
+          mutation: 'CREATED',
+          data: post
+        }
+      });
+
+      return post;
     },
 
     async updatePost(root, {
       _id,
       input
     }) {
-      console.log("updatePost :", _id )
-      return await Post.findOneAndUpdate({
-        _id
-      }, input, {
-        new: true
-      })
+      
+
+      let post = await Post.findOneAndUpdate({
+                    _id
+                  }, input, {
+                    new: true
+                  });
+
+      console.log("updatePost :", _id , post)
+
+      pubsub.publish("POST", {
+        post: {
+          mutation: "UPDATED",
+          data: post,
+        },
+      });
+
+      // pubsub.publish("NUMBER_INCREMENTED", { numberIncrementedx: currentNumber });
+
+      return post;
     },
 
     async deletePost(root, {
       _id
     }) {
       console.log("deletePost :", _id)
-      return await Post.findByIdAndRemove({_id})
+
+      let post = await Post.findByIdAndRemove({_id})
+
+      pubsub.publish('POST', {
+        post:{
+            mutation: 'DELETED',
+            data: post
+        }
+      });
+      
+      return post;
     },
 
     // deletePosts
@@ -898,6 +1230,31 @@ export default {
     },
     // bank
 
+
+   // basic content
+
+    async createBasicContent(root, {
+      input
+    }) {
+      console.log("CreateBasicContent :",JSON.parse(JSON.stringify(input)))
+
+      return await BasicContent.create(JSON.parse(JSON.stringify(input)));
+    },
+    async updateBasicContent(root, {
+      _id,
+      input
+    }) {
+      console.log("UpdateBasicContent :", _id, JSON.parse(JSON.stringify(input)))
+      
+      return await BasicContent.findOneAndUpdate({
+        _id
+      }, input, {
+        new: true
+      })
+    },
+
+   // basic content
+
     // mail
     async createMail(root, {
       input
@@ -940,12 +1297,45 @@ export default {
     // mail
 
     // comment
-    async createComment(root, {
-      input
-    }) {
-      console.log("createComment :",JSON.parse(JSON.stringify(input)))
+    async createAndUpdateComment(parent, args, context, info) {
 
-      return await Comment.create(JSON.parse(JSON.stringify(input)));
+      let {input} = args
+
+      let start = Date.now()
+
+      let result = await Comment.findOneAndUpdate({
+        postId: input.postId
+      }, input, {
+        new: true
+      })
+      
+      if(result === null){
+        result = await Comment.create(input);
+
+        pubsub.publish("COMMENT", {
+          comment: {
+            mutation: "CREATE",
+            commentID: input.postId,
+            data: result.data,
+          },
+        });
+      }else{
+        pubsub.publish("COMMENT", {
+          comment: {
+            mutation: "UPDATED",
+            commentID: input.postId,
+            data: result.data,
+          },
+        });
+      }
+                
+      return {
+        status:true,
+        data: result.data,
+        executionTime: `Time to execute = ${
+          (Date.now() - start) / 1000
+        } seconds`
+      }
     },
 
     async updateComment(root, {
@@ -979,17 +1369,96 @@ export default {
       return deleteMany;
     },
     // comment
+    
+    async createAndUpdateBookmark(parent, args, context, info) {
 
+      if(_.isEmpty(context)){
+        // logger.error(JSON.stringify(args));
+        return;
+      }
 
-    async createBookmark(root, {
-      input
-    }) {
-      console.log("createBookmark :")
+      let {input} = args
 
-      return await Bookmark.create(input);
+      /**
+       * validate data
+      */
+      if(_.isEmpty(await Post.findById(input.postId))){
+        // logger.error("Post id empty :", input.postId)
+        return;
+      } 
+
+      if(_.isEmpty(await User.findById(input.userId))){
+        // logger.error("User id empty :", input.userId)
+        return;
+      } 
+      /**
+       * validate data
+      */
+
+      let result = await Bookmark.findOneAndUpdate({
+        postId: input.postId
+      }, input, {
+        new: true
+      })
+     
+      if(result === null){
+        result = await Bookmark.create(input);
+
+        pubsub.publish("BOOKMARK", {
+          bookmark: {
+            mutation: "CREATE",
+            data: result,
+          },
+        });
+      }else{
+
+        pubsub.publish("BOOKMARK", {
+          bookmark: {
+            mutation: "UPDATED",
+            data: result,
+          },
+        });
+      }
+
+      return result;
     },
+    async createAndUpdateFollow(parent, args, context, info) {
 
+      if(_.isEmpty(context)){
+        // logger.error(JSON.stringify(args));
+        return;
+      }
+      
+      let {input} = args
 
+      /**
+       * validate data
+      */
+      if(_.isEmpty(await User.findById(input.userId))){
+        // logger.error("User id empty :", input.userId)
+        return;
+      } 
+
+      if(_.isEmpty(await User.findById(input.friendId))){
+        // logger.error("User id empty :", input.friendId)
+        return;
+      } 
+      /**
+       * validate data
+      */
+
+      let result = await Follow.findOneAndUpdate({
+        userId: input.userId, friendId: input.friendId
+      }, input, {
+        new: true
+      })
+     
+      if(result === null){
+        result = await Follow.create(input);
+      }
+
+      return result;
+    },
     // TContactUs
     async createTContactUs(root, {
       input
@@ -1027,20 +1496,386 @@ export default {
     },
     // TContactUs
 
-    async createContactUs(root, {
-      input
-    }) {
-      console.log("createContactUs")
+    async createContactUs(parent, args, context, info) {
+
+      if(_.isEmpty(context)){
+        // logger.error(JSON.stringify(args));
+        return;
+      }
+
+      let {input} = args
+
+      /**
+       * validate data
+      */
+      if(_.isEmpty(await Post.findById(input.postId))){
+        // logger.error("Post id empty : ", input.postId)
+        return;
+      } 
+
+      if(_.isEmpty(await User.findById(input.userId))){
+        // logger.error("User id empty : ", input.userId)
+        return;
+      } 
+      /**
+       * validate data
+      */
 
       return await ContactUs.create(input);
     },
+    async createShare(parent, args, context, info) {
 
-    async createShare(root, {
-      input
-    }) {
-      console.log("createShare")
+      let {input} = args
+      let share = await Share.create(input);
 
-      return await Share.create(input);
+      console.log("createShare :", share)
+
+      pubsub.publish("SHARE", {
+        share: {
+          mutation: "CREATE",
+          data: share,
+        },
+      });
+
+      return share;
     },
+    async createConversation(parent, args, context, info) {
+      // let { currentUser } = context
+
+      // if(_.isEmpty(currentUser)){
+      //   return;
+      // }
+
+      let {input} = args
+      
+      let currentUser = await User.findById(input.userId);
+
+      let result =  await  Conversation.findOne({
+                            "members.userId": { $all: [ currentUser._id.toString(), input.friendId ] }
+                          });
+                      
+      let friend = await User.findById(input.friendId);
+
+      if(result === null){
+        result = await Conversation.create({
+          // name: friend.displayName,
+          lastSenderName: currentUser.displayName,
+          info:"",
+          // avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+          // avatarName: friend.displayName,
+          senderId: currentUser._id.toString(),
+          status: "available",
+          // unreadCnt: 0,
+          sentTime: Date.now(),
+          // userId: input.friendId,
+          // members: [input.userId, input.friendId],
+          // members: {[input.userId]:{ 
+          //                           name: currentUser.displayName, 
+          //                           avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
+          //                           unreadCnt: 0 
+          //                         }, 
+          //           [input.friendId]:{ 
+          //                           name: friend.displayName, 
+          //                           avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+          //                           unreadCnt: 0 
+          //                         }},
+          members:[
+            { 
+              userId: currentUser._id.toString(),
+              name: currentUser.displayName, 
+              avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
+              unreadCnt: 0 
+            },
+            {
+              userId: input.friendId,
+              name: friend.displayName, 
+              avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+              unreadCnt: 0 
+            }
+          ]
+        });
+
+        pubsub.publish("CONVERSATION", {
+          conversation: {
+            mutation: "CREATE",
+            data: result,
+          },
+        });
+      }else{
+        pubsub.publish("CONVERSATION", {
+          conversation: {
+            mutation: "UPDATED",
+            data: result,
+          },
+        });
+      }
+      
+      console.log("createConversation : ", input)
+      return result;
+    },
+    async updateConversation(parent, args, context, info) {
+
+      let {_id, input} = args
+
+      let result = await Conversation.findOneAndUpdate({
+        _id
+      }, input, {
+        new: true
+      })
+
+      pubsub.publish("CONVERSATION", {
+        conversation: {
+          mutation: "UPDATED",
+          data: result,
+        },
+      });
+
+      console.log("updateConversation friend : ", result)
+
+      return result;
+    },
+    async addMessage(parent, args, context, info) {
+      // let { currentUser } = context
+
+      // if(_.isEmpty(currentUser)){
+      //   return;
+      // }
+
+      let { userId, conversationId, input } = args
+      let result = await Message.findById(input._id);
+
+      let currentUser = await User.findById(userId);
+      
+      if(_.isEmpty(result)){
+        input = {...input, conversationId, senderId: currentUser._id.toString(), senderName:currentUser.displayName, sentTime: Date.now(), status: "sent"}
+         
+        result = await Message.create(input);
+
+        pubsub.publish('MESSAGE', {
+          message:{
+            mutation: 'CREATED',
+            data: result
+          }
+        });
+      }
+
+      // หาจำนวน unread total = (await Post.find().lean().exec()).length; 
+      // https://www.educative.io/answers/what-is-the-ne-operator-in-mongodb
+      let unreadCnt = (await Message.find({ conversationId , senderId: {$all : currentUser._id.toString()} , status: 'sent'}).lean().exec()).length; 
+      // หาจำนวน unread
+      
+      try {
+        let conversation = await Conversation.findById(conversationId);
+
+        if(!_.isEmpty(conversation)){
+          conversation = _.omit({...conversation._doc}, ["_id", "__v"])
+
+          let newMember = _.find(conversation.members, member => member.userId != currentUser._id.toString());
+          newMember = {...newMember, unreadCnt}
+          
+          let newMembers = _.map(conversation.members, (member)=>member.userId == newMember.userId ? newMember : member)
+
+          conversation = {...conversation, lastSenderName:currentUser.displayName, info:input.message, sentTime: Date.now(), members: newMembers }
+
+          let conversat = await Conversation.findOneAndUpdate({ _id : conversationId }, conversation, { new: true })
+
+          pubsub.publish("CONVERSATION", {
+            conversation: {
+              mutation: "UPDATED",
+              data: conversat,
+            },
+          });
+        }
+      } catch (err) {
+        console.log("conversation err:" , err)
+      }
+      return result;
+    },
+    async updateMessageRead(parent, args, context, info) {
+      let { userId, conversationId } = args
+
+      console.log("updateMessageRead :", userId, conversationId)
+      return;
+    }
+  },
+  Subscription:{
+    numberIncremented: {
+      resolve: (payload) =>{
+        console.log("payload :", payload)
+        return 1234
+      },
+      subscribe: (parent, args, context, info) =>{
+        console.log("parent, args, context, info > :", parent, args, context)
+        return pubsub.asyncIterator(["NUMBER_INCREMENTED"])
+      } ,
+
+      /*
+      // subscribe: withFilter((parent, args, context, info) => {
+      //   console.log("parent, args, context, info :", parent, args, context)
+      //   return context.pubsub.asyncIterator(["NUMBER_INCREMENTED"])
+      // },
+      // (payload, variables) => {
+      //   console.log(">>>>>>>>>>>>>>>>>>> ", payload, variables)
+
+      //   return payload.channelId === variables.channelId;
+      // })
+      */
+    },
+    // withFilter
+
+    postCreated: {
+      // More on pubsub below
+      resolve: (payload) => 122,
+      subscribe: (parent, args, context, info) =>{
+        return pubsub.asyncIterator(['POST_CREATED'])
+      } ,
+    },
+
+    subPost:{
+
+      resolve: (payload) =>{
+        // console.log("subPost : >>>>>>>>>>>>>>>>>>> payload : ", payload)
+        return payload.post
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          // console.log("subPost : parent, args, context, info :", parent, args, context)
+          return pubsub.asyncIterator(["POST"])
+        }, (payload, variables) => {
+          let {mutation, data} = payload.post
+          switch(mutation){
+            case "CREATED":
+            case "UPDATED":
+            case "DELETED":
+              {
+                break;
+              }
+          }
+
+          return _.findIndex(JSON.parse(variables.postIDs), (o) => _.isMatch(o, data.id) ) > -1;
+        }
+      )
+    },
+    subComment:{
+
+      resolve: (payload) =>{
+        return payload.comment
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          // console.log("subComment : parent, args, context, info :", parent, args, context)
+          return pubsub.asyncIterator(["COMMENT"])
+        }, (payload, variables) => {
+          let {mutation, commentID, data} = payload.comment
+          switch(mutation){
+            case "CREATED":
+            case "UPDATED":
+            case "DELETED":
+              {
+                break;
+              }
+          }
+
+          return commentID == variables.commentID;
+        }
+      )
+    },
+    subBookmark: {
+      resolve: (payload) =>{
+        return payload.bookmark
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["BOOKMARK"])
+        }, (payload, variables) => {
+          let {mutation, data} = payload.bookmark
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       break;
+          //     }
+          // }
+          return data.postId == variables.postId && data.userId == variables.userId;
+        }
+      )
+    },
+    subShare: {
+      resolve: (payload) =>{
+        return payload.share
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["SHARE"])
+        }, (payload, variables) => {
+          let {mutation, data} = payload.share
+
+          // console.log("subShare: ", data, payload, variables)
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       break;
+          //     }
+          // }
+          return data.postId == variables.postId;
+        }
+      )
+    },
+    subConversation: {
+      resolve: (payload) =>{
+        return payload.conversation
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["CONVERSATION"])
+        }, (payload, variables, context) => {
+          let {mutation, data} = payload.conversation
+          
+          // let {currentUser} = context
+          // if(_.isEmpty(currentUser)){
+          //   return false;
+          // }
+
+          console.log("CONVERSATION: ", payload)
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       break;
+          //     }
+          // }
+
+          return _.findIndex(data.members, (o) => o.userId == variables.userId ) > -1
+        }
+      )
+    },
+    subMessage: {
+      resolve: (payload) =>{
+        return payload.message
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["MESSAGE"])
+        }, (payload, variables, context) => {
+          let {mutation, data} = payload.message
+
+          // let {currentUser} = context
+          // if(_.isEmpty(currentUser)){
+          //   return false;
+          // }
+
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       break;
+          //     }
+          // }
+
+          return data.conversationId === variables.conversationId && data.senderId !== variables.userId
+        }
+      )
+    }
   }
+
+  // commentAdded
 };

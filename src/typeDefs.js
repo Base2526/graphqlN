@@ -4,6 +4,7 @@ export default gql`
   scalar DATETIME
   scalar Long
   scalar Date
+  scalar JSON
   
   type Room {
     _id: ID
@@ -27,8 +28,13 @@ export default gql`
     displayName: String!
     isActive: String
     roles: [String]!
+    bookmarks: [Bookmark]
     image: [File]
     lastAccess: DATETIME
+  }
+
+  type LoginWithSocial{
+    _id: ID!
   }
 
   input UserInput {
@@ -38,6 +44,19 @@ export default gql`
     roles: [String]
     isActive: String!
     image: [FileInput]
+  }
+
+  input LoginInput {
+    username: String!
+    password: String!
+    deviceAgent: String
+  }
+
+  input LoginWithSocialInput{
+    idToken: String!
+    name: String!
+    email: String!
+    typeSocial: String!
   }
 
   type RoomPayLoad {
@@ -53,6 +72,7 @@ export default gql`
   type UserPayLoad {
     status:Boolean
     messages:String
+    token:String
     executionTime:String
     data:User
   }
@@ -63,10 +83,6 @@ export default gql`
     data:[User]
     total: Int
   }
-
-  # type Comment {
-  #   text:String
-  # }
 
   type File {
     _id: ID!
@@ -101,9 +117,10 @@ export default gql`
     tels: [String]
     banks: [PostBank]
     follows: [ID]
+    shares:[Share]
     files: [File]
     isPublish: Int
-    ownerId: ID
+    ownerId: ID!
     createdAt : DATETIME
     updatedAt: DATETIME
   }
@@ -116,6 +133,12 @@ export default gql`
   }
 
   type Bank {
+    _id: ID!
+    name: String!
+    description: String
+  }
+
+  type BasicContent {
     _id: ID!
     name: String!
     description: String
@@ -134,12 +157,40 @@ export default gql`
     destination: String
   }
 
+
   type Dblog {
     _id: ID!
     level: String
     meta: String
     message: String
     timestamp: String
+  }
+
+  type Conversation {
+    _id: ID!
+    userId: String
+    name: String
+    lastSenderName: String
+    info: String
+    avatarSrc: String
+    avatarName: String
+    status: String
+    unreadCnt: Int
+    sentTime: DATETIME
+    members: [String]
+  }
+
+  type Message {
+    _id: ID!
+    conversationId: String!
+    type: String!
+    message: String
+    sentTime: String
+    sender: String!
+    senderId: String!
+    direction: String
+    position: String!
+    status: String!
   }
 
   type Mail {
@@ -156,17 +207,29 @@ export default gql`
   }
 
   type Comment{
+    status: Boolean
+    executionTime: String
+    data: [CommentParent]
+  }
+
+  type CommentData{
     _id: ID!
-    body: String!
     postId: ID!
-    createdAt : DATETIME
-    updatedAt: DATETIME
+    data: [CommentParent]
   }
 
   type Bookmark{
-    _id: ID!
-    userId: ID!
-    postId: ID!
+    _id: ID
+    userId: ID
+    postId: ID
+    status: Boolean
+  }
+
+  type Follow{
+    _id: ID
+    userId: ID
+    friendId: ID
+    status: Boolean
   }
 
   type Share{
@@ -221,6 +284,18 @@ export default gql`
     data:[Bank]
   }
 
+  type BasicContentPayLoad {
+    status:Boolean
+    executionTime:String
+    data:BasicContent
+  }
+
+  type BasicContentsPayLoad {
+    status:Boolean
+    executionTime:String
+    data:[BasicContent]
+  }
+
   type TContactUsPayLoad {
     status:Boolean
     executionTime:String
@@ -260,7 +335,24 @@ export default gql`
   type CommentPayLoad{
     status:Boolean
     executionTime:String
-    data:Comment
+    data:[CommentParent]
+  }
+
+  type CommentParent {
+    userId: String
+    comId: String
+    fullName: String
+    avatarUrl: String
+    text: String
+    replies: [Replies]
+  }
+
+  type Replies {
+    userId: String
+    comId: String
+    fullName: String
+    avatarUrl: String
+    text: String
   }
 
   type CommentsPayLoad{
@@ -274,6 +366,24 @@ export default gql`
     status:Boolean
     executionTime:String
     data:[Bookmark]
+  }
+
+  type BookmarkPayLoad{
+    status:Boolean
+    executionTime:String
+    data:Bookmark
+  }
+
+  type FollowPayLoad{
+    status:Boolean
+    executionTime:String
+    data:Follow
+  }
+
+  type FollowsPayLoad{
+    status:Boolean
+    executionTime:String
+    data:[Follow]
   }
 
   type SharesPayLoad{
@@ -294,16 +404,22 @@ export default gql`
     data:[ContactUs]
   }
 
+  type ConversationsPayLoad {
+    status:Boolean
+    executionTime:String
+    data:[Conversation]
+  }
+
+  type MessagePayLoad {
+    status:Boolean
+    executionTime:String
+    data:[Message]
+  }
+
   type Query {
+    homes( userId:ID, page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
 
-    Homes(page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
-
-    Login(username: String!, password: String!): UserPayLoad
-
-    room(_id: ID!): RoomPayLoad
-    rooms: RoomsPayLoad
-
-    User(_id: ID!): UserPayLoad
+    user(_id: ID): UserPayLoad
     Users(page: Int, perPage: Int): UsersPayLoad
     getManyUsers(_ids: [ID!]!): UsersPayLoad
     FindUser(filter: PostFilter): UsersPayLoad
@@ -324,20 +440,22 @@ export default gql`
     Sockets(page: Int, perPage: Int): SocketsPayLoad
     getManySockets(_ids: [ID!]!): SocketsPayLoad
 
-    Post(_id: ID!): PostPayLoad
-    Posts(page: Int, perPage: Int ): PostsPayLoad
+    post(_id: ID!): PostPayLoad
+    posts(page: Int, perPage: Int ): PostsPayLoad
     _allPostsMeta(page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): ListMetadata
     getManyPosts(_ids: [ID!]!): PostsPayLoad
+
+    postsByUser(userId: ID!): PostsPayLoad
   
     
-    Comment(_id: ID!): CommentPayLoad
-    Comments(page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): CommentsPayLoad
-    # getManyComments(_ids: [ID!]!): CommentsPayLoad
+    comment(postId: ID!): CommentPayLoad
     getManyReferenceComment(postId: String, page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): CommentsPayLoad
   
 
     Bookmarks(page: Int, perPage: Int): BookmarksPayLoad
-    BookmarksByPostId(postId: ID!, page: Int, perPage: Int): BookmarksPayLoad
+    bookmarksByPostId( postId: ID! ): BookmarksPayLoad
+    isBookmark(userId: ID, postId: ID!): BookmarkPayLoad
+    bookmarksByUserId( userId: ID! ): BookmarksPayLoad
 
     ContactUsList(page: Int, perPage: Int): ContactUsListPayLoad
 
@@ -347,10 +465,23 @@ export default gql`
 
 
     Shares(page: Int, perPage: Int): SharesPayLoad
-    ShareByPostId(postId: ID!, page: Int, perPage: Int): SharesPayLoad
+    shareByPostId(postId: ID!): SharesPayLoad
 
 
     Dblog(page: Int, perPage: Int): DblogPayLoad
+
+    conversations(userId: ID): JSON
+    
+
+    basicContent(_id: ID!): BasicContentPayLoad
+    basicContents(page: Int, perPage: Int): BasicContentsPayLoad
+
+    isFollow(userId: ID!, friendId: ID!): FollowPayLoad
+    follower(userId: ID!): UsersPayLoad
+    followingByUserId(userId: ID!): FollowsPayLoad
+
+
+    fetchMessage(conversationId: ID): JSON
   }  
   
   input RoomInput {
@@ -378,7 +509,7 @@ export default gql`
     files: [FileInput]
     follows: [ID]
     isPublish: Int
-    ownerId: ID
+    ownerId: ID!
   }
 
   input PostBankInput {
@@ -410,6 +541,11 @@ export default gql`
     description: String
   }
 
+  input BasicContentInput {
+    name: String!
+    description: String
+  }
+
   input ContactUsInput{
     postId: String!
     categoryId: String!
@@ -428,6 +564,31 @@ export default gql`
     destination: String
   }
 
+  input ConversationInput{
+    userId: ID!
+    friendId: ID!
+  }
+
+  input UpdateConversationInput{
+    muted: Boolean
+    unread: Int
+    title: String
+    subtitle: String
+    alt: String
+    avatar: String
+  }
+
+  input MessageInput{
+    _id: String!
+    conversationId: String!
+    type: String!
+    message: String
+    sentTime: DATETIME
+    direction: String
+    position: String!
+    status: String!
+  }
+
   input FileInput {
     base64: String
     fileName: String
@@ -438,18 +599,41 @@ export default gql`
 
   input CommentInput {
     postId: ID!
-    body: String!
+    data: [CommentParentInput]
+  }
+
+  input CommentParentInput {
+    userId: String
+    comId: String
+    fullName: String
+    avatarUrl: String
+    text: String
+    replies: [RepliesInput]
+  }
+
+  input RepliesInput {
+    userId: String
+    comId: String
+    fullName: String
+    avatarUrl: String
+    text: String
   }
 
   input BookmarkInput {
     postId: ID!
     userId: ID!
+    status: Boolean
+  }
+
+  input FollowInput {
+    userId: ID!
+    friendId: ID!
+    status: Boolean
   }
 
   type Mutation {
-    # createRoom(input: RoomInput): Room
-    # updateRoom(_id: ID!, input: RoomInput): Room
-    # deleteRoom(_id: ID!): Room
+    login(input: LoginInput): UserPayLoad
+    loginWithSocial(input: LoginWithSocialInput): LoginWithSocial
 
     createUser(input: UserInput): User
     updateUser(_id: ID!, input: UserInput): User
@@ -475,16 +659,14 @@ export default gql`
     deleteMail(_id: ID!): Mail
     deleteMails(_ids: [ID!]!): deleteType
 
-    createComment(input: CommentInput): Comment
+    createAndUpdateComment(input: CommentInput): Comment
     updateComment(_id: ID!, input: CommentInput): Comment
     deleteComment(_id: ID!): Comment
     deleteComments(_ids: [ID!]!): deleteType
 
-
-    createBookmark(input: BookmarkInput): Bookmark
+    createAndUpdateBookmark(input: BookmarkInput): Bookmark
 
     createContactUs(input: ContactUsInput): ContactUs
-
 
     createTContactUs(input: TContactUsInput): TContactUs
     updateTContactUs(_id: ID!, input: TContactUsInput): TContactUs
@@ -492,6 +674,62 @@ export default gql`
     deleteTContactUsList(_ids: [ID!]!): deleteType
 
     createShare(input: ShareInput): Share
+
+    createConversation(input: ConversationInput!): JSON
+    updateConversation(_id: ID!, input: UpdateConversationInput): JSON
+    
+    addMessage( userId: ID!, conversationId: ID!, input: MessageInput ): JSON
+    updateMessageRead( userId: ID!, conversationId: ID! ): JSON
+
+    createBasicContent(input: BasicContentInput): BasicContent
+    updateBasicContent(_id: ID!, input: BasicContentInput): BasicContent
+
+    createAndUpdateFollow(input: FollowInput): Follow
+    currentNumber: Int
+  }
+
+  type Subscription {
+    numberIncremented(postIDs: String): Int
+    postCreated: Int
+
+    subPost(postIDs: String): PostSubscriptionPayload!
+    subComment(commentID: String): CommentSubscriptionPayload!
+    subBookmark(userId: ID!, postId: ID!): BookmarkSubscriptionPayload!
+    subShare(postId: ID!): ShareSubscriptionPayload!
+
+    subConversation(userId: ID): JSON
+    subMessage(userId: ID!, conversationId: ID!): JSON
+  }
+
+  type PostSubscriptionPayload {
+    mutation: String!
+    data: Post!
+  }
+
+  type CommentSubscriptionPayload {
+    mutation: String!
+    commentID: String!
+    data: [CommentParent]!
+  }
+
+  type BookmarkSubscriptionPayload {
+    mutation: String!
+    data: Bookmark!
+  }
+
+  type ShareSubscriptionPayload {
+    mutation: String!
+    data: Share!
+  }
+
+  type ConversationSubscriptionPayload{
+    mutation: String!
+    data: Conversation!
+  }
+
+  type MessageSubscriptionPayload{
+    mutation: String!
+    data: Message!
   }
 
   type deleteType {

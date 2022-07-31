@@ -13,6 +13,16 @@ import tContactUsModel from "./tContactUsModel"
 import ShareModel from "./ShareModel"
 import DblogModel from "./DblogModel"
 
+import ConversationModel from "./ConversationModel"
+
+import MessageModel from "./MessageModel"
+
+import BasicContentModel from "./BasicContentModel"
+
+import FollowModel from "./FollowModel"
+
+import SessionModel from "./SessionModel"
+
 module.exports =  {
     Bank:BankModel,
     Post:PostModel,
@@ -28,5 +38,15 @@ module.exports =  {
     tContactUs:tContactUsModel,
 
     Share:ShareModel,
-    Dblog:DblogModel
+    Dblog:DblogModel,
+
+    Conversation: ConversationModel,
+
+    Message: MessageModel,
+
+    BasicContent: BasicContentModel,
+
+    Follow: FollowModel,
+
+    Session: SessionModel
 };

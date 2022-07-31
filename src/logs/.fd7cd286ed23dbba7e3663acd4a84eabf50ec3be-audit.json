@@ -6,14 +6,64 @@
     "auditLog": "/app/src/logs/.fd7cd286ed23dbba7e3663acd4a84eabf50ec3be-audit.json",
     "files": [
         {
-            "date": 1655030654025,
-            "name": "/app/src/logs/nodejs-guide-2022-06-12.log",
-            "hash": "b0488dd67b2d5817deb421b5449b4fc735753e84bb6d22a2bd52cb0bbb9abdda"
+            "date": 1656467309699,
+            "name": "/app/src/logs/nodejs-guide-2022-06-29.log",
+            "hash": "ebbfb24f8ff86705dfffc9498dc656ec00837e187917798571862fc971ba9d34"
         },
         {
-            "date": 1655082856804,
-            "name": "/app/src/logs/nodejs-guide-2022-06-13.log",
-            "hash": "6a989a7558e8ec48cf324bb3a0a148dca282dc46b22672ccc9641809f514f5d1"
+            "date": 1656721407580,
+            "name": "/app/src/logs/nodejs-guide-2022-07-02.log",
+            "hash": "87e6fde49134f03faaefa2b7f37d7dc72b714b0017cb99454126ff891d23e709"
+        },
+        {
+            "date": 1656809603212,
+            "name": "/app/src/logs/nodejs-guide-2022-07-03.log",
+            "hash": "5c861329a1b9e84060d56ab4dddf615792c36306c106b2d01c13583d7b49074e"
+        },
+        {
+            "date": 1656901853903,
+            "name": "/app/src/logs/nodejs-guide-2022-07-04.log",
+            "hash": "4b4f822314c06ab587d4fe182cf18e6d4457a2f80fc425c38e97716af15b16ef"
+        },
+        {
+            "date": 1657078724196,
+            "name": "/app/src/logs/nodejs-guide-2022-07-06.log",
+            "hash": "0d16ed085628bc34975d3090c592cc1356b0eb7a1c55cdf23a7e2bc42d741d5b"
+        },
+        {
+            "date": 1657210421861,
+            "name": "/app/src/logs/nodejs-guide-2022-07-07.log",
+            "hash": "9d7338c2c43aac79d9445f9c50b054bbd0e94b1b264d7e873460a7c3f9422801"
+        },
+        {
+            "date": 1657251468337,
+            "name": "/app/src/logs/nodejs-guide-2022-07-08.log",
+            "hash": "c2a4b87a50cdf67435bb34f3f6adc37b86b235bc817a55f21cf2fd2ab0fd11e8"
+        },
+        {
+            "date": 1657331583387,
+            "name": "/app/src/logs/nodejs-guide-2022-07-09.log",
+            "hash": "a8439a27fb77e5a1f904b1a5aef2ec6c6d037949846980543d68c2bca8228bbb"
+        },
+        {
+            "date": 1657411573529,
+            "name": "/app/src/logs/nodejs-guide-2022-07-10.log",
+            "hash": "3556a7e1e088ad2bcbc2d242725078580b46db004e9726afbbfd6c9400312be4"
+        },
+        {
+            "date": 1657526981148,
+            "name": "/app/src/logs/nodejs-guide-2022-07-11.log",
+            "hash": "4058cccc8187865f5bd643caf3aa6792abea298bac05923de15a7610454f0672"
+        },
+        {
+            "date": 1657627258189,
+            "name": "/app/src/logs/nodejs-guide-2022-07-12.log",
+            "hash": "07cbdc4fb3d26141c175a9d37e459c18796a2ea3869cf65d094d2871831625fd"
+        },
+        {
+            "date": 1657675288003,
+            "name": "/app/src/logs/nodejs-guide-2022-07-13.log",
+            "hash": "f6e3b6bb28438cb0533ce8e7be7a8623439dd47f331ba7b0b83c767365a6dc53"
         }
     ],
     "hashType": "sha256"

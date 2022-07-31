@@ -55,3 +55,8 @@ query Rooms{
     }
   }
 }
+
+
+
+// example chat socket.io
+https://devrix.com/tutorial/how-to-create-simple-react-chat-application-using-socket-io/

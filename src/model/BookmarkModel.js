@@ -4,6 +4,7 @@ const BookmarkModel = new mongoose.Schema(
   {
     userId: { type: String },
     postId: { type: String },
+    status: { type: Boolean }
   },
   {
     timestamps: true,
