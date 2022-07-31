@@ -12,6 +12,7 @@ const messageSchema = new Schema({
     direction: { type: String },
     position: { type: String },
     status: { type: String },
+    reads: [String]
 },
 { timestamps: true })
 
