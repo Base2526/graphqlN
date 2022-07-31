@@ -11,8 +11,10 @@ const conversationSchema = new Schema({
     status: { type: String },
     unreadCnt: { type: Number },
     sentTime: { type: Date },
-    userId: { type: String },
-    members: [String],
+    senderId: { type: String },
+    members: [Object],
+
+    // testMembers: Object
     
     // muted: { type: Boolean }, 
     // unread: { type: Number },

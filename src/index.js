@@ -108,10 +108,43 @@ async function startApolloServer(typeDefs, resolvers) {
                 //   // You can return false to close the connection  or throw an explicit error
                 //   throw new Error('Auth token missing!');
                 // }
-                console.log("Connect!");
+                // console.log("Connect! ", ctx);
+
+                if (ctx.connectionParams.authToken) {
+                    console.log("Connect! ", ctx.connectionParams.authToken);
+                    try {
+                        let userId  = jwt.verify(ctx.connectionParams.authToken, process.env.JWT_SECRET);
+        
+                        await User.updateOne({
+                            _id: userId
+                        }, {
+                            $set: {
+                                isOnline: true
+                            }
+                        })
+                    } catch(err) {
+                        console.log(">> ", err.toString())
+                    }
+                }
             },
-            onDisconnect(ctx, code, reason) {
-                console.log("Disconnected!");
+            onDisconnect: async (ctx, code, reason) =>{
+                console.log("Disconnected! ", ctx.connectionParams.authToken);
+
+                if (ctx.connectionParams.authToken) {
+                    try {
+                        let userId  = jwt.verify(ctx.connectionParams.authToken, process.env.JWT_SECRET);
+        
+                        await User.updateOne({
+                            _id: userId
+                        }, {
+                            $set: {
+                                isOnline: false
+                            }
+                        })
+                    } catch(err) {
+                        console.log(">> ", err.toString())
+                    }
+                }
             }
         }, 
         wsServer);
@@ -148,7 +181,7 @@ async function startApolloServer(typeDefs, resolvers) {
         // },
 
         context: async ({ req }) => {
-            // console.log("ApolloServer context ", req.headers && req.headers.authorization)
+            // console.log("ApolloServer context ", req.headers)
 
             // https://daily.dev/blog/authentication-and-authorization-in-graphql
             // throw Error("throw Error(user.msg);");

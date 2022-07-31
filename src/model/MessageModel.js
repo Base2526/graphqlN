@@ -7,7 +7,7 @@ const messageSchema = new Schema({
     type: { type: String },
     message: { type: String },
     sentTime: { type: String },
-    sender: { type: String },
+    senderName: { type: String },
     senderId: { type: String },
     direction: { type: String },
     position: { type: String },

@@ -42,6 +42,10 @@ export default {
 
       let {_id} = args
 
+      if(_.isEmpty(_id)){
+        return;
+      }
+
       // console.log("User : >> ", _id)
       let data = await User.findById(_id);
       return {
@@ -127,6 +131,7 @@ export default {
     // homes
     async homes(parent, args, context, info) {
       let {
+        userId,
         page,
         perPage, 
         keywordSearch, 
@@ -134,6 +139,10 @@ export default {
       } = args
 
       let start = Date.now()
+
+      if(_.isEmpty(userId)){
+        
+      }
 
       // console.log("Homes: page : ", page,
       //             ", perPage : ", perPage, 
@@ -256,8 +265,8 @@ export default {
                     (Date.now() - start) / 1000
                   } seconds` )
 
-      let data = await  Post.find({ownerId: currentUser._id}).limit(perPage).skip(page); 
-      let total = (await Post.find({ownerId: currentUser._id}).lean().exec()).length;
+      let data = await  Post.find({ownerId: currentUser._id.toString()}).limit(perPage).skip(page); 
+      let total = (await Post.find({ownerId: currentUser._id.toString()}).lean().exec()).length;
 
       return {
         status:true,
@@ -668,6 +677,10 @@ export default {
 
       let { userId, postId } = args
 
+      if(_.isEmpty(userId)){
+        return ;
+      }
+
       let data =await Bookmark.findOne({ userId, postId });
 
       return {
@@ -894,17 +907,20 @@ export default {
     async conversations(parent, args, context, info) {
 
       let start = Date.now()
+      // let { currentUser } = context
+
+      // console.log("conversations :", currentUser)
+
+      // if(_.isEmpty(currentUser) ){
+      //   return;
+      // }
 
       let { userId } = args
 
-      if(!userId){
-        return;
-      }
-
-      let data = await Conversation.find({
-        members: { $all: [userId] },
+      let data=  await Conversation.find({
+        "members.userId": { $all: [ userId ] }
       });
-
+    
       return {
         status:true,
         data,
@@ -917,13 +933,26 @@ export default {
     async fetchMessage(parent, args, context, info) {
       let start = Date.now()
 
-      let { id } = args
+      // let { currentUser } = context
 
-      let data = await Message.find({
-        conversationId: id,
-      });
+      // if(_.isEmpty(currentUser) ){
+      //   return;
+      // }
 
-      console.log("message : ", id, data)
+      let { conversationId } = args
+
+      if(_.isEmpty(conversationId)){
+        return ;
+      }
+
+      let data = await Message.find({ conversationId });
+
+      // let newData = data.map(({ _id: id, ...rest }) => ({
+      //   id,
+      //   ...rest,
+      // }));
+
+      console.log("fetchMessage : ", conversationId)
       return {
         status:true,
         data,
@@ -1494,7 +1523,6 @@ export default {
 
       return await ContactUs.create(input);
     },
-
     async createShare(parent, args, context, info) {
 
       let {input} = args
@@ -1511,53 +1539,60 @@ export default {
 
       return share;
     },
-
     async createConversation(parent, args, context, info) {
+      // let { currentUser } = context
+
+      // if(_.isEmpty(currentUser)){
+      //   return;
+      // }
 
       let {input} = args
-      console.log("createConversation params : ", input)
+      
+      let currentUser = await User.findById(input.userId);
 
-      /*
-      muted: Boolean
-      unread: Int
-      title: String
-      subtitle: String
-      alt: String
-      avatar: String
-      date: DATETIME
-      */
-
-      let result= await Conversation.findOne({
-        members: { $all: [input.userId, input.friendId] },
-      });
-
+      let result =  await  Conversation.findOne({
+                            "members.userId": { $all: [ currentUser._id.toString(), input.friendId ] }
+                          });
+                      
       let friend = await User.findById(input.friendId);
-
-      /*
-      id: "1",
-      name:"Lilly",
-      lastSenderName:"Lilly",
-      info:"Yes i can do it for you",
-      avatarSrc: avatarIco,
-      avatarName: "Lilly",
-      status: "available",
-      unreadCnt: 0,
-      sentTime: "15 mins ago",
-      */
 
       if(result === null){
         result = await Conversation.create({
-          name: friend.displayName,
-          lastSenderName:"",
+          // name: friend.displayName,
+          lastSenderName: currentUser.displayName,
           info:"",
-          avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
-          avatarName: friend.displayName,
+          // avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+          // avatarName: friend.displayName,
+          senderId: currentUser._id.toString(),
           status: "available",
-          unreadCnt: 0,
+          // unreadCnt: 0,
           sentTime: Date.now(),
-          userId: input.friendId,
-          members: [input.userId, input.friendId],
-          
+          // userId: input.friendId,
+          // members: [input.userId, input.friendId],
+          // members: {[input.userId]:{ 
+          //                           name: currentUser.displayName, 
+          //                           avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
+          //                           unreadCnt: 0 
+          //                         }, 
+          //           [input.friendId]:{ 
+          //                           name: friend.displayName, 
+          //                           avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+          //                           unreadCnt: 0 
+          //                         }},
+          members:[
+            { 
+              userId: currentUser._id.toString(),
+              name: currentUser.displayName, 
+              avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
+              unreadCnt: 0 
+            },
+            {
+              userId: input.friendId,
+              name: friend.displayName, 
+              avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+              unreadCnt: 0 
+            }
+          ]
         });
 
         pubsub.publish("CONVERSATION", {
@@ -1575,11 +1610,9 @@ export default {
         });
       }
       
-      console.log("createConversation friend : ", friend, result)
-
+      console.log("createConversation : ", input)
       return result;
     },
-
     async updateConversation(parent, args, context, info) {
 
       let {_id, input} = args
@@ -1601,27 +1634,20 @@ export default {
 
       return result;
     },
-
-    // 
     async addMessage(parent, args, context, info) {
+      // let { currentUser } = context
 
-      let { _id, input } = args
-
-      // let result= await Conversation.findOne({fetchMessage
-      //   members: { $all: [input.userId, input.friendId] },
-      // });
-
-      // if(result === null){
-      //   result = await Message.create({
-      //     members: [input.userId, input.friendId],
-      //   });
+      // if(_.isEmpty(currentUser)){
+      //   return;
       // }
 
-
+      let { userId, conversationId, input } = args
       let result = await Message.findById(input._id);
+
+      let currentUser = await User.findById(userId);
       
       if(_.isEmpty(result)){
-        input = {...input, conversationId: _id, sentTime: Date.now(), status: "sent"}
+        input = {...input, conversationId, senderId: currentUser._id.toString(), senderName:currentUser.displayName, sentTime: Date.now(), status: "sent"}
          
         result = await Message.create(input);
 
@@ -1633,24 +1659,44 @@ export default {
         });
       }
 
-      let conversat = await Conversation.findOneAndUpdate({
-        _id
-      }, {
-        lastSenderName: input.sender,
-        info : input.message,
-      }, {
-        new: true
-      })
+      // หาจำนวน unread total = (await Post.find().lean().exec()).length; 
+      // https://www.educative.io/answers/what-is-the-ne-operator-in-mongodb
+      let unreadCnt = (await Message.find({ conversationId , senderId: {$all : currentUser._id.toString()} , status: 'sent'}).lean().exec()).length; 
+      // หาจำนวน unread
+      
+      try {
+        let conversation = await Conversation.findById(conversationId);
 
-      pubsub.publish("CONVERSATION", {
-        conversation: {
-          mutation: "UPDATED",
-          data: conversat,
-        },
-      });
+        if(!_.isEmpty(conversation)){
+          conversation = _.omit({...conversation._doc}, ["_id", "__v"])
 
+          let newMember = _.find(conversation.members, member => member.userId != currentUser._id.toString());
+          newMember = {...newMember, unreadCnt}
+          
+          let newMembers = _.map(conversation.members, (member)=>member.userId == newMember.userId ? newMember : member)
+
+          conversation = {...conversation, lastSenderName:currentUser.displayName, info:input.message, sentTime: Date.now(), members: newMembers }
+
+          let conversat = await Conversation.findOneAndUpdate({ _id : conversationId }, conversation, { new: true })
+
+          pubsub.publish("CONVERSATION", {
+            conversation: {
+              mutation: "UPDATED",
+              data: conversat,
+            },
+          });
+        }
+      } catch (err) {
+        console.log("conversation err:" , err)
+      }
       return result;
     },
+    async updateMessageRead(parent, args, context, info) {
+      let { userId, conversationId } = args
+
+      console.log("updateMessageRead :", userId, conversationId)
+      return;
+    }
   },
   Subscription:{
     numberIncremented: {
@@ -1780,10 +1826,15 @@ export default {
       },
       subscribe: withFilter((parent, args, context, info) => {
           return pubsub.asyncIterator(["CONVERSATION"])
-        }, (payload, variables) => {
+        }, (payload, variables, context) => {
           let {mutation, data} = payload.conversation
+          
+          // let {currentUser} = context
+          // if(_.isEmpty(currentUser)){
+          //   return false;
+          // }
 
-          console.log("CONVERSATION: ", data, payload, variables)
+          console.log("CONVERSATION: ", payload)
           // switch(mutation){
           //   case "CREATED":
           //   case "UPDATED":
@@ -1793,22 +1844,24 @@ export default {
           //     }
           // }
 
-          return _.findIndex(data.members, (o) => o == variables.userId ) > -1
+          return _.findIndex(data.members, (o) => o.userId == variables.userId ) > -1
         }
       )
     },
-
     subMessage: {
       resolve: (payload) =>{
         return payload.message
       },
       subscribe: withFilter((parent, args, context, info) => {
           return pubsub.asyncIterator(["MESSAGE"])
-        }, (payload, variables) => {
+        }, (payload, variables, context) => {
           let {mutation, data} = payload.message
-          console.log("========= subMessage #1 =========")
-          console.log("MESSAGE: ", data, payload, variables)
-          console.log("========= subMessage #2 =========")
+
+          // let {currentUser} = context
+          // if(_.isEmpty(currentUser)){
+          //   return false;
+          // }
+
           // switch(mutation){
           //   case "CREATED":
           //   case "UPDATED":
@@ -1818,7 +1871,7 @@ export default {
           //     }
           // }
 
-          return data.conversationId === variables.id 
+          return data.conversationId === variables.conversationId && data.senderId !== variables.userId
         }
       )
     }

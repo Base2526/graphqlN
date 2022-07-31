@@ -16,8 +16,10 @@ const userSchema = new Schema({
     type: { type: String },
     
     lastModified: { type: Date },
+    
   }],
-  lastAccess : { type : Date, default: Date.now }
+  lastAccess : { type : Date, default: Date.now },
+  isOnline: {type: Boolean, default: false}
 },
 {
     timestamps: true

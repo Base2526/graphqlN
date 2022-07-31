@@ -4,6 +4,7 @@ export default gql`
   scalar DATETIME
   scalar Long
   scalar Date
+  scalar JSON
   
   type Room {
     _id: ID
@@ -187,7 +188,7 @@ export default gql`
     sentTime: String
     sender: String!
     senderId: String!
-    direction: String!
+    direction: String
     position: String!
     status: String!
   }
@@ -416,12 +417,9 @@ export default gql`
   }
 
   type Query {
-    homes(page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
+    homes( userId:ID, page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
 
-    room(_id: ID!): RoomPayLoad
-    rooms: RoomsPayLoad
-
-    user(_id: ID!): UserPayLoad
+    user(_id: ID): UserPayLoad
     Users(page: Int, perPage: Int): UsersPayLoad
     getManyUsers(_ids: [ID!]!): UsersPayLoad
     FindUser(filter: PostFilter): UsersPayLoad
@@ -456,7 +454,7 @@ export default gql`
 
     Bookmarks(page: Int, perPage: Int): BookmarksPayLoad
     bookmarksByPostId( postId: ID! ): BookmarksPayLoad
-    isBookmark(userId: ID!, postId: ID!): BookmarkPayLoad
+    isBookmark(userId: ID, postId: ID!): BookmarkPayLoad
     bookmarksByUserId( userId: ID! ): BookmarksPayLoad
 
     ContactUsList(page: Int, perPage: Int): ContactUsListPayLoad
@@ -472,7 +470,7 @@ export default gql`
 
     Dblog(page: Int, perPage: Int): DblogPayLoad
 
-    conversations(userId: ID): ConversationsPayLoad
+    conversations(userId: ID): JSON
     
 
     basicContent(_id: ID!): BasicContentPayLoad
@@ -483,7 +481,7 @@ export default gql`
     followingByUserId(userId: ID!): FollowsPayLoad
 
 
-    fetchMessage(id: ID!): MessagePayLoad
+    fetchMessage(conversationId: ID): JSON
   }  
   
   input RoomInput {
@@ -586,9 +584,7 @@ export default gql`
     type: String!
     message: String
     sentTime: DATETIME
-    sender: String!
-    senderId: String!
-    direction: String!
+    direction: String
     position: String!
     status: String!
   }
@@ -668,11 +664,9 @@ export default gql`
     deleteComment(_id: ID!): Comment
     deleteComments(_ids: [ID!]!): deleteType
 
-
     createAndUpdateBookmark(input: BookmarkInput): Bookmark
 
     createContactUs(input: ContactUsInput): ContactUs
-
 
     createTContactUs(input: TContactUsInput): TContactUs
     updateTContactUs(_id: ID!, input: TContactUsInput): TContactUs
@@ -681,22 +675,16 @@ export default gql`
 
     createShare(input: ShareInput): Share
 
-
-
-    createConversation(input: ConversationInput): Conversation
-    updateConversation(_id: ID!, input: UpdateConversationInput): Conversation
-
-
+    createConversation(input: ConversationInput!): JSON
+    updateConversation(_id: ID!, input: UpdateConversationInput): JSON
     
-    addMessage(_id: ID!, input: MessageInput) : Message
-
+    addMessage( userId: ID!, conversationId: ID!, input: MessageInput ): JSON
+    updateMessageRead( userId: ID!, conversationId: ID! ): JSON
 
     createBasicContent(input: BasicContentInput): BasicContent
     updateBasicContent(_id: ID!, input: BasicContentInput): BasicContent
 
-
     createAndUpdateFollow(input: FollowInput): Follow
-
     currentNumber: Int
   }
 
@@ -709,8 +697,8 @@ export default gql`
     subBookmark(userId: ID!, postId: ID!): BookmarkSubscriptionPayload!
     subShare(postId: ID!): ShareSubscriptionPayload!
 
-    subConversation(userId: ID!): ConversationSubscriptionPayload!
-    subMessage(id: ID!): MessageSubscriptionPayload!
+    subConversation(userId: ID): JSON
+    subMessage(userId: ID!, conversationId: ID!): JSON
   }
 
   type PostSubscriptionPayload {
