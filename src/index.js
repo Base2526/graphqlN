@@ -1,50 +1,22 @@
-import cors from 'cors';
 import { createServer } from "http";
 import express from "express";
 import { ApolloServer, gql } from "apollo-server-express";
 import { ApolloServerPluginDrainHttpServer } from "apollo-server-core";
-// import { PubSub } from "graphql-subscriptions";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { WebSocketServer } from "ws";
 import { useServer } from "graphql-ws/lib/use/ws";
-import { PubSub } from "graphql-subscriptions";
 import jwt from 'jsonwebtoken';
 
-import {Bank, Post, Role, User, Comment, Mail, Socket} from './model'
-
+import {User} from './model'
 import connection from './mongo' 
 import typeDefs from "./typeDefs";
 import resolvers from "./resolvers";
+import pubsub from './pubsub'
 
-let pubsub = new PubSub();
-
+let logger = require("./utils/logger");
 let PORT = process.env.PORT || 4000;
-// const pubsub = new PubSub();
 
-// Schema definition
-// const typeDefs = gql`
-//   type Query {
-//     currentNumber: Int
-//   }
-
-//   type Subscription {
-//     numberIncremented: Int
-//   }
-// `;
-
-// // Resolver map
-// const resolvers = {
-//   Query: {
-//     currentNumber() {
-//       return currentNumber;
-//     },
-//   },
-//   Subscription: {
-//     numberIncremented: {
-//       subscribe: () => pubsub.asyncIterator(["NUMBER_INCREMENTED"]),
-//     },
-//   },
-// };
+// ping
 
 async function startApolloServer(typeDefs, resolvers) {
 
@@ -108,41 +80,47 @@ async function startApolloServer(typeDefs, resolvers) {
                 //   // You can return false to close the connection  or throw an explicit error
                 //   throw new Error('Auth token missing!');
                 // }
-                // console.log("Connect! ", ctx);
+                // 
+                logger.info(ctx.connectionParams);
 
                 if (ctx.connectionParams.authToken) {
-                    console.log("Connect! ", ctx.connectionParams.authToken);
                     try {
                         let userId  = jwt.verify(ctx.connectionParams.authToken, process.env.JWT_SECRET);
         
-                        await User.updateOne({
-                            _id: userId
-                        }, {
-                            $set: {
-                                isOnline: true
-                            }
-                        })
+                        let result = await User.updateOne({ _id: userId }, { $set: { isOnline: true }})
+
+                        if(result.ok){
+                            pubsub.publish("CONVERSATION", {
+                                conversation:{
+                                  mutation: 'CONNECTED',
+                                  data: userId
+                                }
+                            });
+                        }
+                        
                     } catch(err) {
-                        console.log(">> ", err.toString())
-                    }
+                        logger.error(err.toString());
+                    } 
                 }
             },
             onDisconnect: async (ctx, code, reason) =>{
-                console.log("Disconnected! ", ctx.connectionParams.authToken);
-
+                logger.info(ctx.connectionParams);
                 if (ctx.connectionParams.authToken) {
                     try {
                         let userId  = jwt.verify(ctx.connectionParams.authToken, process.env.JWT_SECRET);
         
-                        await User.updateOne({
-                            _id: userId
-                        }, {
-                            $set: {
-                                isOnline: false
-                            }
-                        })
+                        let result =  await User.updateOne({ _id: userId }, { $set: { isOnline: false } })
+
+                        if(result.ok){
+                            pubsub.publish("CONVERSATION", {
+                                conversation:{
+                                mutation: 'DISCONNECTED',
+                                data: ""
+                                }
+                            });
+                        }
                     } catch(err) {
-                        console.log(">> ", err.toString())
+                        logger.error(err.toString());
                     }
                 }
             }
@@ -210,44 +188,24 @@ async function startApolloServer(typeDefs, resolvers) {
                         let currentUser = await User.findById(userId)
                         
                         // console.log("context >> " , data._id)
-                        return {...req, pubsub, currentUser} 
+                        return {...req, currentUser} 
                     } catch(err) {
-                        // logger.error(err.toString());
-                        console.log(">> ", err.toString())
+                        logger.error( err.toString() );
                     }
                 }
             }
-            return {...req, pubsub, currentUser: null}
+            return {...req, currentUser: null}
         }
     });
   
-
     await server.start();
     server.applyMiddleware({ app });
 
-    // server.installSubscriptionHandlers(httpServer);
-    
     // Now that our HTTP server is fully set up, actually listen.
     httpServer.listen(PORT, () => {
-    console.log(
-        `🚀 Query endpoint ready at http://localhost:${PORT}${server.graphqlPath}`
-    );
-    console.log(
-        `🚀 Subscription endpoint ready at ws://localhost:${PORT}${server.graphqlPath}`
-    );
+        console.log(`🚀 Query endpoint ready at http://localhost:${PORT}${server.graphqlPath}`);
+        console.log(`🚀 Subscription endpoint ready at ws://localhost:${PORT}${server.graphqlPath}`);
     });
 }
 
 startApolloServer(typeDefs, resolvers) 
-
-
-// In the background, increment a number every second and notify subscribers when
-// // it changes.
-// let currentNumber = 0;
-// function incrementNumber() {
-//   currentNumber++;
-//   pubsub.publish("NUMBER_INCREMENTED", { numberIncremented: currentNumber });
-//   setTimeout(incrementNumber, 1000);
-// }
-// // Start incrementing
-// incrementNumber();

@@ -18,8 +18,9 @@ const logConfig = {
     }),
     winston.format.align(),
     winston.format.printf(
-      (info) =>
-        `${info.level}: ${info.label} : ${[info.timestamp]}: ${info.message}`
+      (info) =>{
+        return `${info.level}: ${info.label} : ${[info.timestamp]}: ${info.message}`
+      } 
     )
   ),
 };
@@ -57,17 +58,18 @@ const logger = winston.createLogger({
   transports: [
     // Daily Rotation File
     new winston.transports.DailyRotateFile({
-      filename: `${PROJECT_ROOT}/logs/nodejs-guide-%DATE%.log`,
+      filename: `${PROJECT_ROOT}/logs/logs-%DATE%.log`,
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxSize: '20m',
-      maxFiles: '14d',
+      maxSize: '2000m',
+      maxFiles: '60d',
     }),
 
     // Normal Files
+    /*
     new winston.transports.File({
       level: 'info',
-      filename: `${PROJECT_ROOT}/logs/server.log`,
+      filename: `${PROJECT_ROOT}/logs/server-%DATE%.log`,
       handleExceptions: true,
       json: true,
       maxSize: 5242880, // 5MB
@@ -76,13 +78,14 @@ const logger = winston.createLogger({
     }),
     new winston.transports.File({
       level: 'error',
-      filename: `${PROJECT_ROOT}/logs/errors.log`,
+      filename: `${PROJECT_ROOT}/logs/errors-%DATE%.log`,
       handleExceptions: true,
       json: true,
       maxSize: 5242880, // 5MB
       maxFiles: 5,
       colorize: true,
     }),
+    */
 
     // Console Log
     // new winston.transports.Console(logConfig),
@@ -164,23 +167,26 @@ function formatLogArguments(args) {
 
   const stackInfo = getStackInfo(1);
 
+
   if (stackInfo) {
     // get file path relative to project root
     // const calleeStr = '(' + stackInfo.relativePath + ':' + stackInfo.line + ')';
-    const calleeStr = `(${stackInfo.relativePath}:${stackInfo.line})${arrow}`;
-    // console.log(calleeStr);
+    const calleeStr = `${stackInfo.relativePath}:${stackInfo.line}`;
+    
     const calleeStrHl = highlight(calleeStr);
     // console.log(calleeStrHl);
 
     if (typeof args[0] === 'string') {
-      console.log(calleeStrHl, args[0]);
+      // console.log(calleeStrHl, args[0]);
       // args[0] = calleeStr + ' ' + args[0];
       args[0] = `log${arrow} ${args[0]}`;
     } else {
       const logging = highlight('Logging below\u2B07 ');
-      console.log(calleeStrHl, logging);
-      console.log(JSON.stringify(args, null, 2));
-      args.unshift(calleeStr);
+      // console.log(calleeStrHl, logging);
+      // console.log(JSON.stringify(args, null, 2));
+      // args.unshift(calleeStr);
+
+      args[0] = {...args[0], info: calleeStr}
     }
   }
 
@@ -190,11 +196,10 @@ function formatLogArguments(args) {
 /**
  * Parses and returns info about the call stack at the given index.
  */
-
 function getStackInfo(stackIndex) {
   // get call stack, and analyze it
   // get all file, method, and line numbers
-  const stacklist = new Error().stack.split('\n').slice(3);
+  const stacklist = new Error().stack.split('\n').slice(5);
 
   // stack trace format:
   // http://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
