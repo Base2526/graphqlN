@@ -16,8 +16,6 @@ import pubsub from './pubsub'
 let logger = require("./utils/logger");
 let PORT = process.env.PORT || 4000;
 
-// ping
-
 async function startApolloServer(typeDefs, resolvers) {
 
     // Create schema, which will be used separately by ApolloServer and
@@ -149,7 +147,7 @@ async function startApolloServer(typeDefs, resolvers) {
         ],
 
         // subscriptions: {
-        //     path: "/subscriptions",
+        //     // path: "/subscriptions",
         //     onConnect: () => {
         //       console.log("Client connected for subscriptions");
         //     },

@@ -890,7 +890,6 @@ export default {
       //   ...rest,
       // }));
 
-      console.log("fetchMessage : ", conversationId)
       return {
         status:true,
         data,
@@ -1478,99 +1477,108 @@ export default {
       return share;
     },
     async createConversation(parent, args, context, info) {
-      // let { currentUser } = context
+      try{
+        // let { currentUser } = context
 
-      // if(_.isEmpty(currentUser)){
-      //   return;
-      // }
+        // if(_.isEmpty(currentUser)){
+        //   return;
+        // }
 
-      let {input} = args
-      
-      let currentUser = await User.findById(input.userId);
+        let {input} = args
+        
+        let currentUser = await User.findById(input.userId);
 
-      let result =  await  Conversation.findOne({
-                            "members.userId": { $all: [ currentUser._id.toString(), input.friendId ] }
-                          });
-                      
-      let friend = await User.findById(input.friendId);
+        let result =  await  Conversation.findOne({
+                              "members.userId": { $all: [ currentUser._id.toString(), input.friendId ] }
+                            });
+                        
+        let friend = await User.findById(input.friendId);
 
-      if(result === null){
-        result = await Conversation.create({
-          // name: friend.displayName,
-          lastSenderName: currentUser.displayName,
-          info:"",
-          // avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
-          // avatarName: friend.displayName,
-          senderId: currentUser._id.toString(),
-          status: "available",
-          // unreadCnt: 0,
-          sentTime: Date.now(),
-          // userId: input.friendId,
-          // members: [input.userId, input.friendId],
-          // members: {[input.userId]:{ 
-          //                           name: currentUser.displayName, 
-          //                           avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
-          //                           unreadCnt: 0 
-          //                         }, 
-          //           [input.friendId]:{ 
-          //                           name: friend.displayName, 
-          //                           avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
-          //                           unreadCnt: 0 
-          //                         }},
-          members:[
-            { 
-              userId: currentUser._id.toString(),
-              name: currentUser.displayName, 
-              avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
-              unreadCnt: 0 
+        if(result === null){
+          result = await Conversation.create({
+            // name: friend.displayName,
+            lastSenderName: currentUser.displayName,
+            info:"",
+            // avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+            // avatarName: friend.displayName,
+            senderId: currentUser._id.toString(),
+            status: "available",
+            // unreadCnt: 0,
+            sentTime: Date.now(),
+            // userId: input.friendId,
+            // members: [input.userId, input.friendId],
+            // members: {[input.userId]:{ 
+            //                           name: currentUser.displayName, 
+            //                           avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
+            //                           unreadCnt: 0 
+            //                         }, 
+            //           [input.friendId]:{ 
+            //                           name: friend.displayName, 
+            //                           avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+            //                           unreadCnt: 0 
+            //                         }},
+            members:[
+              { 
+                userId: currentUser._id.toString(),
+                name: currentUser.displayName, 
+                avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
+                unreadCnt: 0 
+              },
+              {
+                userId: input.friendId,
+                name: friend.displayName, 
+                avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+                unreadCnt: 0 
+              }
+            ]
+          });
+
+          pubsub.publish("CONVERSATION", {
+            conversation: {
+              mutation: "CREATED",
+              data: result,
             },
-            {
-              userId: input.friendId,
-              name: friend.displayName, 
-              avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
-              unreadCnt: 0 
-            }
-          ]
-        });
+          });
+        }else{
+          pubsub.publish("CONVERSATION", {
+            conversation: {
+              mutation: "UPDATED",
+              data: result,
+            },
+          });
+        }
+        
+        return result;
 
-        pubsub.publish("CONVERSATION", {
-          conversation: {
-            mutation: "CREATED",
-            data: result,
-          },
-        });
-      }else{
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+    async updateConversation(parent, args, context, info) {
+      try{
+        let {_id, input} = args
+
+        let result = await Conversation.findOneAndUpdate({
+          _id
+        }, input, {
+          new: true
+        })
+
         pubsub.publish("CONVERSATION", {
           conversation: {
             mutation: "UPDATED",
             data: result,
           },
         });
+
+        console.log("updateConversation friend : ", result)
+
+        return result;
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
-      
-      console.log("createConversation : ", input)
-      return result;
-    },
-    async updateConversation(parent, args, context, info) {
-
-      let {_id, input} = args
-
-      let result = await Conversation.findOneAndUpdate({
-        _id
-      }, input, {
-        new: true
-      })
-
-      pubsub.publish("CONVERSATION", {
-        conversation: {
-          mutation: "UPDATED",
-          data: result,
-        },
-      });
-
-      console.log("updateConversation friend : ", result)
-
-      return result;
     },
     async addMessage(parent, args, context, info) {
       // let { currentUser } = context
@@ -1594,8 +1602,6 @@ export default {
                   reads: []}
          
         result = await Message.create(input);
-
-        
 
         try {
           let conversation = await Conversation.findById(conversationId);
@@ -1628,8 +1634,6 @@ export default {
                 data: conversat,
               },
             });
-
-            console.log("p ::", p)
           }
         } catch (err) {
           console.log("conversation err:" , err)
@@ -1838,7 +1842,7 @@ export default {
 
             case "CONNECTED":
             case "DISCONNECTED":{
-              console.log("CONVERSATION :::: ", mutation, data)
+              // console.log("CONVERSATION :::: ", mutation, data)
             }
           }
 
