@@ -420,24 +420,23 @@ export default gql`
     homes( userId:ID, page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
 
     user(_id: ID): UserPayLoad
-    Users(page: Int, perPage: Int): UsersPayLoad
+    users(page: Int, perPage: Int): UsersPayLoad
     getManyUsers(_ids: [ID!]!): UsersPayLoad
-    FindUser(filter: PostFilter): UsersPayLoad
 
-    Role(_id: ID!): RolePayLoad
-    Roles(page: Int, perPage: Int): RolesPayLoad
+    role(_id: ID!): RolePayLoad
+    roles: RolesPayLoad
     getManyRoles(_ids: [ID!]!): RolesPayLoad
 
-    Bank(_id: ID!): BankPayLoad
-    Banks(page: Int, perPage: Int): BanksPayLoad
+    bank(_id: ID!): BankPayLoad
+    banks(page: Int, perPage: Int): BanksPayLoad
     getManyBanks(_ids: [ID!]!): BanksPayLoad
 
     Mail(_id: ID!): MailPayLoad
     Mails(page: Int, perPage: Int ): MailsPayLoad
     getManyMails(_ids: [ID!]!): MailsPayLoad
 
-    Socket(_id: ID!): SocketPayLoad
-    Sockets(page: Int, perPage: Int): SocketsPayLoad
+    socket(_id: ID!): SocketPayLoad
+    sockets(page: Int, perPage: Int): SocketsPayLoad
     getManySockets(_ids: [ID!]!): SocketsPayLoad
 
     post(_id: ID!): PostPayLoad

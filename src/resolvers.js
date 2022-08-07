@@ -1,5 +1,4 @@
 import jwt from 'jsonwebtoken';
-
 import { withFilter } from 'graphql-subscriptions';
 import _ from "lodash";
 
@@ -21,14 +20,9 @@ import {Bank,
         Follow,
         Session} from './model'
 import {emailValidate} from './utils'
-
-// const logger = require('./utils/logger');
-
-
-// let pubsub = new PubSub();
-// pubsub.ee.setMaxListeners(100);
-
 import pubsub from './pubsub'
+
+let logger = require("./utils/logger");
 
 export default {
   Query: {
@@ -46,7 +40,6 @@ export default {
         return;
       }
 
-      // console.log("User : >> ", _id)
       let data = await User.findById(_id);
       return {
         status:true,
@@ -57,32 +50,25 @@ export default {
         } seconds`
       }
     },
-    async Users(root, {
-      page,
-      perPage
-    }) {
+    async users(parent, args, context, info) {
+      try{
+        let start = Date.now()
+        let {page, perPage} = args
+        let data = await  User.find({}).limit(perPage).skip(page); 
+        let total = (await User.find({})).length;
 
-      let start = Date.now()
+        return {
+          status:true,
+          data,
+          total,
+          executionTime: `Time to execute = ${
+            (Date.now() - start) / 1000
+          } seconds`
+        }
 
-      // console.log("users: page : ", page,
-      //             ", perPage : ", perPage,
-      //             `Time to execute = ${
-      //               (Date.now() - start) / 1000
-      //             } seconds` )
-
-      // let data = await User.find();
-      let data = await  User.find({}).limit(perPage).skip(page); //.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 });
-      
-      let total = (await User.find({})).length;//.sort({[sortField]: sortOrder === 'ASC' ? 1 : -1 })).length;
-      // console.log("total  ", total)
-
-      return {
-        status:true,
-        data,
-        total,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
     },
     async getManyUsers(root, {
@@ -95,28 +81,6 @@ export default {
       let data =  await User.find({_id: {
         $in: _ids,
       }})
-
-      return {
-        status:true,
-        data,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
-      }
-    },
-    async FindUser(root, {
-      filter
-    }) {
-
-      let start = Date.now()
-
-      console.log("FindUser filter : ", JSON.parse(JSON.stringify(filter.q)),
-                  `Time to execute = ${ (Date.now() - start) / 1000 } seconds` )
-
-      let q = filter.q.split("=")
-
-
-      let data = await User.find({[q[0]]:q[1]});
 
       return {
         status:true,
@@ -171,8 +135,6 @@ export default {
 
       let skip =  page == 0 ? page : (perPage * page) + 1;
      
-      let p = 0;
-
       // console.log("keywordSearch ::", !!keywordSearch, keywordSearch)
       if(!!keywordSearch){
         keywordSearch = keywordSearch.trim()
@@ -204,15 +166,13 @@ export default {
 
         data = await Post.find({ $or: regex }).limit(perPage).skip(skip);
 
-        p = (Date.now() - start) / 1000;
         total = (await Post.find().lean().exec()).length; 
       }else{
         data = await Post.find().limit(perPage).skip(skip); 
 
-        p = (Date.now() - start) / 1000;
         total = (await Post.find().lean().exec()).length;
       }
-      console.log("total , skip :", total, skip)
+      // console.log("homes total , skip :", total, skip, context.currentUser)
 
       let new_data = await Promise.all( _.map(data, async(v)=>{
                         return {...v._doc, shares: await Share.find({postId: v._id})}
@@ -224,7 +184,7 @@ export default {
         total,
         executionTime: `Time to execute = ${
           (Date.now() - start) / 1000
-        }-${ p } seconds`,
+        }`,
       }
     },
     // homes
@@ -316,37 +276,37 @@ export default {
     // post
 
     // Role
-    async Role(root, {
-      _id
-    }) {
+    async role(parent, args, context, info) {
 
-      let data = await Role.findById(_id);
-      return {
-        status:true,
-        data
+      try{
+        let start = Date.now()
+
+        let {_id} = args
+        let data = await Role.findById(_id);
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
     },
-    async Roles(root, {
-      page,
-      perPage
-    }) {
+    async roles(parent, args, context, info) {
 
-      let start = Date.now()
-
-      console.log("Roles: page : ", page,
-                  ", perPage : ", perPage, 
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
-
-      let data = await Role.find();
-
-      return {
-        status:true,
-        data,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
+      try{
+        let start = Date.now()
+        let data = await Role.find();
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
     },
     async getManyRoles(root, {
@@ -370,37 +330,34 @@ export default {
     // Role
 
     // Bank
-    async Bank(root, {
-      _id
-    }) {
-
-      let data = await Bank.findById(_id);
-      return {
-        status:true,
-        data
+    async bank(parent, args, context, info) {
+      try{
+        let start = Date.now()
+        let { _id } = args
+        let data = await Bank.findById(_id);
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
     },
-    async Banks(root, {
-      page,
-      perPage
-    }) {
+    async banks(parent, args, context, info) {
+      try{
+        let start = Date.now()
+        let data = await Bank.find();
 
-      let start = Date.now()
-
-      console.log("Banks: page : ", page,
-                  ", perPage : ", perPage, 
-                  `Time to execute = ${
-                    (Date.now() - start) / 1000
-                  } seconds` )
-
-      let data = await Bank.find();
-
-      return {
-        status:true,
-        data,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
     },
     async getManyBanks(root, {
@@ -512,50 +469,55 @@ export default {
     // Mail
 
     // Socket
-    async Socket(root, {
-      _id
-    }) {
+    async socket(parent, args, context, info) {
 
-      console.log("Socket >> ")
+      try{
+        let start = Date.now()
 
-      let data = await Socket.findById(_id);
-      return {
-        status:true,
-        data
+        let {_id} = args
+
+        let data = await Socket.findById(_id);
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
       
     },
-    async Sockets(root, {
-      page,
-      perPage
-    }) {
-      let start = Date.now()
-      let data = await Socket.find();
+    async sockets(parent, args, context, info) {
+      try{
+        let start = Date.now()
+        let data = await Socket.find();
 
-      return {
-        status:true,
-        data,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
     },
-    async getManySockets(root, {
-      _ids
-    }) {
-      console.log("getManySockets :", _ids)
+    async getManySockets(parent, args, context, info) {
+      try{
+        let {_ids} = args
 
-      let start = Date.now()
-      let data =  await Socket.find({_id: {
-        $in: _ids,
-      }})
+        let start = Date.now()
+        let data =  await Socket.find({_id: { $in: _ids }})
 
-      return {
-        status:true,
-        data,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
     },
     // Socket
@@ -579,31 +541,7 @@ export default {
         } seconds`
       }
     },
-    // async Comments(root, {
-    //   postId
-    // }) {
 
-    //   let start = Date.now()
-
-    //   console.log("Comments, postId : ", postId
-    //               `Time to execute = ${
-    //                 (Date.now() - start) / 1000
-    //               } seconds` )
-
-    //   let data = await  Comment.find({postId: postId});
-
-    //   let total = await  Comment.find({postId: postId});
-    //   console.log("total  ", total)
-
-    //   return {
-    //     status:true,
-    //     data,
-    //     total,
-    //     executionTime: `Time to execute = ${
-    //       (Date.now() - start) / 1000
-    //     } seconds`
-    //   }
-    // },
     async getManyReferenceComment(root, {
       postId,
       page,
@@ -1314,7 +1252,7 @@ export default {
 
         pubsub.publish("COMMENT", {
           comment: {
-            mutation: "CREATE",
+            mutation: "CREATED",
             commentID: input.postId,
             data: result.data,
           },
@@ -1406,7 +1344,7 @@ export default {
 
         pubsub.publish("BOOKMARK", {
           bookmark: {
-            mutation: "CREATE",
+            mutation: "CREATED",
             data: result,
           },
         });
@@ -1532,7 +1470,7 @@ export default {
 
       pubsub.publish("SHARE", {
         share: {
-          mutation: "CREATE",
+          mutation: "CREATED",
           data: share,
         },
       });
@@ -1597,7 +1535,7 @@ export default {
 
         pubsub.publish("CONVERSATION", {
           conversation: {
-            mutation: "CREATE",
+            mutation: "CREATED",
             data: result,
           },
         });
@@ -1647,9 +1585,55 @@ export default {
       let currentUser = await User.findById(userId);
       
       if(_.isEmpty(result)){
-        input = {...input, conversationId, senderId: currentUser._id.toString(), senderName:currentUser.displayName, sentTime: Date.now(), status: "sent"}
+        input = { ...input, 
+                  conversationId, 
+                  senderId: currentUser._id.toString(), 
+                  senderName: currentUser.displayName, 
+                  sentTime: Date.now(), 
+                  status: "sent",
+                  reads: []}
          
         result = await Message.create(input);
+
+        
+
+        try {
+          let conversation = await Conversation.findById(conversationId);
+  
+          if(!_.isEmpty(conversation)){
+            conversation = _.omit({...conversation._doc}, ["_id", "__v"])
+  
+            let newMember = _.find(conversation.members, member => member.userId != currentUser._id.toString());
+  
+  
+            // หาจำนวน unread total = (await Post.find().lean().exec()).length; 
+            // https://www.educative.io/answers/what-is-the-ne-operator-in-mongodb
+            let unreadCnt = (await Message.find({ conversationId, 
+                                                  senderId: {$all : currentUser._id.toString()}, 
+                                                  status: 'sent',
+                                                  reads: { $nin: [ newMember.userId ] }}).lean().exec()).length; 
+            // หาจำนวน unread
+  
+            newMember = {...newMember, unreadCnt}
+            
+            let newMembers = _.map(conversation.members, (member)=>member.userId == newMember.userId ? newMember : member)
+  
+            conversation = {...conversation, lastSenderName:currentUser.displayName, info:input.message, sentTime: Date.now(), members: newMembers }
+  
+            let conversat = await Conversation.findOneAndUpdate({ _id : conversationId }, conversation, { new: true })
+  
+            let p = pubsub.publish("CONVERSATION", {
+              conversation: {
+                mutation: "UPDATED",
+                data: conversat,
+              },
+            });
+
+            console.log("p ::", p)
+          }
+        } catch (err) {
+          console.log("conversation err:" , err)
+        }
 
         pubsub.publish('MESSAGE', {
           message:{
@@ -1659,44 +1643,54 @@ export default {
         });
       }
 
-      // หาจำนวน unread total = (await Post.find().lean().exec()).length; 
-      // https://www.educative.io/answers/what-is-the-ne-operator-in-mongodb
-      let unreadCnt = (await Message.find({ conversationId , senderId: {$all : currentUser._id.toString()} , status: 'sent'}).lean().exec()).length; 
-      // หาจำนวน unread
       
-      try {
-        let conversation = await Conversation.findById(conversationId);
-
-        if(!_.isEmpty(conversation)){
-          conversation = _.omit({...conversation._doc}, ["_id", "__v"])
-
-          let newMember = _.find(conversation.members, member => member.userId != currentUser._id.toString());
-          newMember = {...newMember, unreadCnt}
-          
-          let newMembers = _.map(conversation.members, (member)=>member.userId == newMember.userId ? newMember : member)
-
-          conversation = {...conversation, lastSenderName:currentUser.displayName, info:input.message, sentTime: Date.now(), members: newMembers }
-
-          let conversat = await Conversation.findOneAndUpdate({ _id : conversationId }, conversation, { new: true })
-
-          pubsub.publish("CONVERSATION", {
-            conversation: {
-              mutation: "UPDATED",
-              data: conversat,
-            },
-          });
-        }
-      } catch (err) {
-        console.log("conversation err:" , err)
-      }
       return result;
     },
     async updateMessageRead(parent, args, context, info) {
       let { userId, conversationId } = args
 
       console.log("updateMessageRead :", userId, conversationId)
+
+      // let currentUser = await User.findById(userId);
+
+      let conversation = await Conversation.findById(conversationId);
+
+      if(!_.isEmpty(conversation)){
+
+        // update all message to read
+        await Message.updateMany({
+            conversationId, 
+            senderId: { $nin: [ userId ] },
+            status: 'sent',
+            reads: { $nin: [ userId ] }
+          }, 
+          // {$set: {reads: [ userId ] }}
+          { $push: {reads: userId } }
+        )
+
+        // update conversation  unreadCnt = 0
+        conversation = _.omit({...conversation._doc}, ["_id", "__v"])
+    
+        conversation = {...conversation, members: _.map(conversation.members, (member)=>member.userId == userId ? {...member, unreadCnt:0} : member) }
+
+        let newConversation = await Conversation.findOneAndUpdate({ _id : conversationId }, conversation, { new: true })
+
+
+        let UPDATED =  {
+          mutation: "UPDATED",
+          data: newConversation,
+        }
+
+        pubsub.publish("CONVERSATION", {
+          conversation: UPDATED
+        });
+
+        return UPDATED;
+      }
+      
       return;
     }
+
   },
   Subscription:{
     numberIncremented: {
@@ -1730,7 +1724,6 @@ export default {
         return pubsub.asyncIterator(['POST_CREATED'])
       } ,
     },
-
     subPost:{
 
       resolve: (payload) =>{
@@ -1834,17 +1827,23 @@ export default {
           //   return false;
           // }
 
-          console.log("CONVERSATION: ", payload)
-          // switch(mutation){
-          //   case "CREATED":
-          //   case "UPDATED":
-          //   case "DELETED":
-          //     {
-          //       break;
-          //     }
-          // }
+          // console.log("CONVERSATION: ", payload)
+          switch(mutation){
+            case "CREATED":
+            case "UPDATED":
+            case "DELETED":
+              {
+                return _.findIndex(data.members, (o) => o.userId == variables.userId ) > -1
+              }
 
-          return _.findIndex(data.members, (o) => o.userId == variables.userId ) > -1
+            case "CONNECTED":
+            case "DISCONNECTED":{
+              console.log("CONVERSATION :::: ", mutation, data)
+            }
+          }
+
+          return false;
+          
         }
       )
     },
@@ -1854,8 +1853,45 @@ export default {
       },
       subscribe: withFilter((parent, args, context, info) => {
           return pubsub.asyncIterator(["MESSAGE"])
-        }, (payload, variables, context) => {
+        }, async (payload, variables, context) => {
           let {mutation, data} = payload.message
+
+          if(variables.conversationId === data.conversationId &&  variables.userId !== data.senderId) {
+            
+            let conversation = await Conversation.findById(variables.conversationId);
+
+            console.log("MESSAGE ::", variables, data)
+
+            if(!_.isEmpty(conversation)){
+
+              // update all message to read
+              await Message.updateMany({
+                  conversationId: variables.conversationId, 
+                  senderId: { $nin: [ variables.userId ] },
+                  status: 'sent',
+                  reads: { $nin: [ variables.userId ] }
+                }, 
+                // {$set: {reads: [ userId ] }}
+                { $push: {reads: variables.userId } }
+              )
+
+              // update conversation  unreadCnt = 0
+              conversation = _.omit({...conversation._doc}, ["_id", "__v"])
+          
+              conversation = {...conversation, members: _.map(conversation.members, (member)=>member.userId == variables.userId ? {...member, unreadCnt:0} : member) }
+
+              let newConversation = await Conversation.findOneAndUpdate({ _id : variables.conversationId }, conversation, { new: true })
+
+              pubsub.publish("CONVERSATION", {
+                conversation: {
+                  mutation: "UPDATED",
+                  data: newConversation,
+                }
+              });
+
+              // return UPDATED;
+            }
+          }
 
           // let {currentUser} = context
           // if(_.isEmpty(currentUser)){
@@ -1874,7 +1910,22 @@ export default {
           return data.conversationId === variables.conversationId && data.senderId !== variables.userId
         }
       )
-    }
+    },
+    // subUserTrack: {
+    //   resolve: (payload) =>{
+    //     return payload.user_track
+    //   },
+    //   subscribe: withFilter((parent, args, context, info) => {
+    //       return pubsub.asyncIterator(["USER_TRACK"])
+    //     }, async (payload, variables, context) => {
+    //       let {mutation, data} = payload.user_track
+
+    //       console.log("USER_TRACK :", mutation, data, variables)
+
+    //       return false
+    //     }
+    //   )
+    // }
   }
 
   // commentAdded
