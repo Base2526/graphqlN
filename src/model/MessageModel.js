@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 const Schema = mongoose.Schema
 
+var payload  = new Schema({
+    src: { type: String },
+    alt: { type: String },
+    width: { type: String },
+})
+
 const messageSchema = new Schema({
     _id: { type: String },
     conversationId: { type: String },
@@ -12,7 +18,13 @@ const messageSchema = new Schema({
     direction: { type: String },
     position: { type: String },
     status: { type: String },
-    reads: [String]
+    reads: [String],
+
+    payload: {
+        src: { type: String },
+        alt: { type: String },
+        width: { type: String }
+    }
 },
 { timestamps: true })
 

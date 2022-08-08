@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { withFilter } from 'graphql-subscriptions';
 import _ from "lodash";
+// const {
+//   GraphQLUpload,
+//   graphqlUploadExpress, // A Koa implementation is also exported.
+// } = require('graphql-upload');
+import * as fs from "fs";
 
 import {Bank, 
         Post, 
@@ -22,7 +27,19 @@ import {Bank,
 import {emailValidate} from './utils'
 import pubsub from './pubsub'
 
+import {fileRenamer} from "./utils"
+
+const path = require('path');
+
+// const GraphQLUpload = require('graphql-upload/GraphQLUpload.js');
+const {
+  GraphQLUpload,
+  graphqlUploadExpress, // A Koa implementation is also exported.
+} = require('graphql-upload');
+
 let logger = require("./utils/logger");
+
+
 
 export default {
   Query: {
@@ -897,12 +914,14 @@ export default {
           (Date.now() - start) / 1000
         } seconds`
       }
+      
     },
 
     // 
     
     
   },
+  Upload: GraphQLUpload,
   Mutation: {
 
     async currentNumber(parent, args, context, info) {
@@ -1587,7 +1606,50 @@ export default {
       //   return;
       // }
 
+      console.log("addMessage : ", args)
+
       let { userId, conversationId, input } = args
+
+
+      ///////////////////////
+      if(input.type === "image"){
+        let {payload, files} = input
+
+        let url = [];
+        for (let i = 0; i < files.length; i++) {
+          const { createReadStream, filename, encoding, mimetype } = await files[i];
+          const stream = createReadStream();
+          const assetUniqName = fileRenamer(filename);
+          const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+
+          const output = fs.createWriteStream(pathName)
+          stream.pipe(output);
+
+          await new Promise(function (resolve, reject) {
+            output.on('close', () => {
+              resolve();
+            });
+      
+            output.on('error', (err) => {
+              logger.error(err.toString());
+
+              reject(err);
+            });
+          });
+
+          const urlForArray = `http://localhost:4000/${assetUniqName}`;
+          url.push({ url: urlForArray });
+        }
+
+
+        payload = {...payload, src: url[0].url}
+
+        input = {...input, payload}
+
+      }
+
+      /////////////////////////
+
       let result = await Message.findById(input._id);
 
       let currentUser = await User.findById(userId);
@@ -1647,7 +1709,6 @@ export default {
         });
       }
 
-      
       return result;
     },
     async updateMessageRead(parent, args, context, info) {
@@ -1693,8 +1754,62 @@ export default {
       }
       
       return;
-    }
+    },
 
+    // https://medium.com/geekculture/multiple-file-upload-with-apollo-server-3-react-graphql-da87880bc01d
+    async fileUpload(parent, args, context, info){
+
+
+      /*
+            return {
+        status:true,
+        data,
+        executionTime: 
+      }
+
+      
+    },
+      */
+      try{
+        let start = Date.now()
+
+        console.log("fileUpload :", args)
+
+        let {file} = args
+
+        let url = [];
+        for (let i = 0; i < file.length; i++) {
+          const { createReadStream, filename, encoding, mimetype } = await file[i];
+          const stream = createReadStream();
+          const assetUniqName = fileRenamer(filename);
+          const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+
+          const output = fs.createWriteStream(pathName)
+          stream.pipe(output);
+
+          await new Promise(function (resolve, reject) {
+            output.on('close', () => {
+              resolve();
+            });
+      
+            output.on('error', (err) => {
+              logger.error(err.toString());
+
+              reject(err);
+            });
+          });
+
+          const urlForArray = `http://localhost:4000/${assetUniqName}`;
+          url.push({ url: urlForArray });
+        }
+
+        console.log("url : ", url , `Time to execute = ${ (Date.now() - start) / 1000 } seconds`)
+
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    }
   },
   Subscription:{
     numberIncremented: {

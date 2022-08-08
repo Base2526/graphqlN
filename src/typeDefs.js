@@ -5,6 +5,14 @@ export default gql`
   scalar Long
   scalar Date
   scalar JSON
+
+  scalar Upload
+
+  type FileX {
+    filename: String!
+    mimetype: String!
+    encoding: String!
+  }
   
   type Room {
     _id: ID
@@ -586,6 +594,8 @@ export default gql`
     direction: String
     position: String!
     status: String!
+    payload: JSON
+    files: [Upload]
   }
 
   input FileInput {
@@ -685,6 +695,8 @@ export default gql`
 
     createAndUpdateFollow(input: FollowInput): Follow
     currentNumber: Int
+
+    fileUpload(text: String!, file: [Upload]!): [FileX]!
   }
 
   type Subscription {
