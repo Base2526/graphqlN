@@ -594,7 +594,7 @@ export default gql`
     direction: String
     position: String!
     status: String!
-    payload: JSON
+    payload: [JSON]
     files: [Upload]
   }
 

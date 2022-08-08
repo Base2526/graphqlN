@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 const Schema = mongoose.Schema
 
-var payload  = new Schema({
+var payloadSchema  = new Schema({
     src: { type: String },
     alt: { type: String },
-    width: { type: String },
+    width: { type: String }
 })
 
 const messageSchema = new Schema({
@@ -20,11 +20,7 @@ const messageSchema = new Schema({
     status: { type: String },
     reads: [String],
 
-    payload: {
-        src: { type: String },
-        alt: { type: String },
-        width: { type: String }
-    }
+    payload: [payloadSchema]
 },
 { timestamps: true })
 

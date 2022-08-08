@@ -28,6 +28,7 @@
     "apollo-server-express": "^3.7.0",
     "babel-jest": "^28.1.1",
     "cli-highlight": "^2.1.11",
+    "deepdash": "^5.3.9",
     "eiows": "^4.0.1",
     "express": "^4.18.1",
     "fs": "^0.0.1-security",

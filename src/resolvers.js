@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { withFilter } from 'graphql-subscriptions';
 import _ from "lodash";
+
+import deepdash from "deepdash";
+deepdash(_);
+
 // const {
 //   GraphQLUpload,
 //   graphqlUploadExpress, // A Koa implementation is also exported.
@@ -1641,11 +1645,8 @@ export default {
           url.push({ url: urlForArray });
         }
 
-
-        payload = {...payload, src: url[0].url}
-
-        input = {...input, payload}
-
+        input = {...input, payload: _.map(payload, (p, index)=>{ return {...p, src: url[index].url} })}
+        input = _.omit(input, ['files'])
       }
 
       /////////////////////////
@@ -1714,7 +1715,7 @@ export default {
     async updateMessageRead(parent, args, context, info) {
       let { userId, conversationId } = args
 
-      console.log("updateMessageRead :", userId, conversationId)
+      // console.log("updateMessageRead :", userId, conversationId)
 
       // let currentUser = await User.findById(userId);
 
@@ -1979,7 +1980,7 @@ export default {
             
             let conversation = await Conversation.findById(variables.conversationId);
 
-            console.log("MESSAGE ::", variables, data)
+            // console.log("MESSAGE ::", variables, data)
 
             if(!_.isEmpty(conversation)){
 
