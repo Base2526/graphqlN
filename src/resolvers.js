@@ -2,6 +2,15 @@ import jwt from 'jsonwebtoken';
 import { withFilter } from 'graphql-subscriptions';
 import _ from "lodash";
 
+import deepdash from "deepdash";
+deepdash(_);
+
+// const {
+//   GraphQLUpload,
+//   graphqlUploadExpress, // A Koa implementation is also exported.
+// } = require('graphql-upload');
+import * as fs from "fs";
+
 import {Bank, 
         Post, 
         Role, 
@@ -18,11 +27,25 @@ import {Bank,
         Message,
         BasicContent,
         Follow,
-        Session} from './model'
+        Session,
+        Notification,
+        Phone} from './model'
 import {emailValidate} from './utils'
 import pubsub from './pubsub'
 
+import {fileRenamer} from "./utils"
+
+const path = require('path');
+
+// const GraphQLUpload = require('graphql-upload/GraphQLUpload.js');
+const {
+  GraphQLUpload,
+  graphqlUploadExpress, // A Koa implementation is also exported.
+} = require('graphql-upload');
+
 let logger = require("./utils/logger");
+
+
 
 export default {
   Query: {
@@ -868,6 +891,25 @@ export default {
       }
     },
 
+    async notifications(parent, args, context, info) {
+      try{
+        let start = Date.now()
+        let { userId } = args
+
+        let data=  await Notification.find({ user_to_notify: userId });
+
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+
     async fetchMessage(parent, args, context, info) {
       let start = Date.now()
 
@@ -890,7 +932,6 @@ export default {
       //   ...rest,
       // }));
 
-      console.log("fetchMessage : ", conversationId)
       return {
         status:true,
         data,
@@ -898,12 +939,50 @@ export default {
           (Date.now() - start) / 1000
         } seconds`
       }
+      
     },
 
-    // 
-    
-    
+    async phones(parent, args, context, info) {
+      try{
+        let start = Date.now()
+
+        let {currentUser} = context
+        
+        let { page, perPage } = args
+
+        let data = await  Phone.find({ownerId: currentUser._id.toString()}).limit(perPage).skip(page); 
+        let total = (await Phone.find({ownerId: currentUser._id.toString()}).lean().exec()).length;
+
+        return {
+          status:true,
+          data,
+          total,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+    async phone(parent, args, context, info) {
+      try{
+        let start = Date.now()
+
+        let {_id} = args
+
+        let data = await Phone.findById(_id);
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
   },
+  Upload: GraphQLUpload,
   Mutation: {
 
     async currentNumber(parent, args, context, info) {
@@ -1241,20 +1320,27 @@ export default {
 
       let start = Date.now()
 
-      let result = await Comment.findOneAndUpdate({
+      // console.log("createAndUpdateComment #1 :", input )
+      // console.log("createAndUpdateComment #2 :", _.omitDeep(input, ['notify']) )
+
+      let {postId, data} = input
+
+     
+
+      let resultComment = await Comment.findOneAndUpdate({
         postId: input.postId
       }, input, {
         new: true
       })
       
-      if(result === null){
-        result = await Comment.create(input);
+      if(resultComment === null){
+        resultComment = await Comment.create(input);
 
         pubsub.publish("COMMENT", {
           comment: {
             mutation: "CREATED",
             commentID: input.postId,
-            data: result.data,
+            data: resultComment.data,
           },
         });
       }else{
@@ -1262,17 +1348,79 @@ export default {
           comment: {
             mutation: "UPDATED",
             commentID: input.postId,
-            data: result.data,
+            data: resultComment.data,
           },
         });
       }
+
+      ////////////////// send notification //////////////////
+
+      input = {...input, commentID: resultComment._id.toString()}
+
+      _.map(input.data, async(item)=>{
+        // replies  notify
+        if(item.notify){
+          // item.userId
+
+          // หาเจ้าของ โพส แล้วส่ง notify ไปหา เจ้าของโพส
+          let post = await Post.findById(postId);
+          if(post){
+            let {ownerId} = post
+
+            if(ownerId !== item.userId){
+
+              let resultNoti = await Notification.create({
+                                                        user_to_notify: ownerId,
+                                                        user_who_fired_event: item.userId,
+                                                        type: "comment",
+                                                        text: item.text,
+                                                        status: "send",
+                                                        input
+                                                      });
+
+              pubsub.publish("NOTIFICATION", {
+                notification: {
+                  mutation: "CREATED",
+                  data: resultNoti,
+                },
+              });
+            }
+          }
+        }
+
+        _.map(item.replies, async(replie)=>{
+          if(replie.notify){
+
+            console.log("#2 :", item.userId, replie.userId)
+
+            if(item.userId !== replie.userId){
+
+              let resultNoti =  await Notification.create({
+                                          user_to_notify: item.userId,
+                                          user_who_fired_event: replie.userId,
+                                          type: "comment",
+                                          text: replie.text,
+                                          status: "send",
+                                          input
+                                        });
+
+              pubsub.publish("NOTIFICATION", {
+                notification: {
+                  mutation: "CREATED",
+                  data: resultNoti,
+                },
+              });
+            }
+          }
+        })
+      })
+
+      ////////////////// send notification //////////////////
                 
       return {
         status:true,
-        data: result.data,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
+        data: resultComment.data,
+        executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
       }
     },
 
@@ -1478,99 +1626,108 @@ export default {
       return share;
     },
     async createConversation(parent, args, context, info) {
-      // let { currentUser } = context
+      try{
+        // let { currentUser } = context
 
-      // if(_.isEmpty(currentUser)){
-      //   return;
-      // }
+        // if(_.isEmpty(currentUser)){
+        //   return;
+        // }
 
-      let {input} = args
-      
-      let currentUser = await User.findById(input.userId);
+        let {input} = args
+        
+        let currentUser = await User.findById(input.userId);
 
-      let result =  await  Conversation.findOne({
-                            "members.userId": { $all: [ currentUser._id.toString(), input.friendId ] }
-                          });
-                      
-      let friend = await User.findById(input.friendId);
+        let result =  await  Conversation.findOne({
+                              "members.userId": { $all: [ currentUser._id.toString(), input.friendId ] }
+                            });
+                        
+        let friend = await User.findById(input.friendId);
 
-      if(result === null){
-        result = await Conversation.create({
-          // name: friend.displayName,
-          lastSenderName: currentUser.displayName,
-          info:"",
-          // avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
-          // avatarName: friend.displayName,
-          senderId: currentUser._id.toString(),
-          status: "available",
-          // unreadCnt: 0,
-          sentTime: Date.now(),
-          // userId: input.friendId,
-          // members: [input.userId, input.friendId],
-          // members: {[input.userId]:{ 
-          //                           name: currentUser.displayName, 
-          //                           avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
-          //                           unreadCnt: 0 
-          //                         }, 
-          //           [input.friendId]:{ 
-          //                           name: friend.displayName, 
-          //                           avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
-          //                           unreadCnt: 0 
-          //                         }},
-          members:[
-            { 
-              userId: currentUser._id.toString(),
-              name: currentUser.displayName, 
-              avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
-              unreadCnt: 0 
+        if(result === null){
+          result = await Conversation.create({
+            // name: friend.displayName,
+            lastSenderName: currentUser.displayName,
+            info:"",
+            // avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+            // avatarName: friend.displayName,
+            senderId: currentUser._id.toString(),
+            status: "available",
+            // unreadCnt: 0,
+            sentTime: Date.now(),
+            // userId: input.friendId,
+            // members: [input.userId, input.friendId],
+            // members: {[input.userId]:{ 
+            //                           name: currentUser.displayName, 
+            //                           avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
+            //                           unreadCnt: 0 
+            //                         }, 
+            //           [input.friendId]:{ 
+            //                           name: friend.displayName, 
+            //                           avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+            //                           unreadCnt: 0 
+            //                         }},
+            members:[
+              { 
+                userId: currentUser._id.toString(),
+                name: currentUser.displayName, 
+                avatarSrc: _.isEmpty(currentUser.image) ? "" :  currentUser.image[0].base64,
+                unreadCnt: 0 
+              },
+              {
+                userId: input.friendId,
+                name: friend.displayName, 
+                avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
+                unreadCnt: 0 
+              }
+            ]
+          });
+
+          pubsub.publish("CONVERSATION", {
+            conversation: {
+              mutation: "CREATED",
+              data: result,
             },
-            {
-              userId: input.friendId,
-              name: friend.displayName, 
-              avatarSrc: _.isEmpty(friend.image) ? "" :  friend.image[0].base64,
-              unreadCnt: 0 
-            }
-          ]
-        });
+          });
+        }else{
+          pubsub.publish("CONVERSATION", {
+            conversation: {
+              mutation: "UPDATED",
+              data: result,
+            },
+          });
+        }
+        
+        return result;
 
-        pubsub.publish("CONVERSATION", {
-          conversation: {
-            mutation: "CREATED",
-            data: result,
-          },
-        });
-      }else{
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+    async updateConversation(parent, args, context, info) {
+      try{
+        let {_id, input} = args
+
+        let result = await Conversation.findOneAndUpdate({
+          _id
+        }, input, {
+          new: true
+        })
+
         pubsub.publish("CONVERSATION", {
           conversation: {
             mutation: "UPDATED",
             data: result,
           },
         });
+
+        console.log("updateConversation friend : ", result)
+
+        return result;
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
-      
-      console.log("createConversation : ", input)
-      return result;
-    },
-    async updateConversation(parent, args, context, info) {
-
-      let {_id, input} = args
-
-      let result = await Conversation.findOneAndUpdate({
-        _id
-      }, input, {
-        new: true
-      })
-
-      pubsub.publish("CONVERSATION", {
-        conversation: {
-          mutation: "UPDATED",
-          data: result,
-        },
-      });
-
-      console.log("updateConversation friend : ", result)
-
-      return result;
     },
     async addMessage(parent, args, context, info) {
       // let { currentUser } = context
@@ -1579,7 +1736,47 @@ export default {
       //   return;
       // }
 
+      console.log("addMessage : ", args)
+
       let { userId, conversationId, input } = args
+
+
+      ///////////////////////
+      if(input.type === "image"){
+        let {payload, files} = input
+
+        let url = [];
+        for (let i = 0; i < files.length; i++) {
+          const { createReadStream, filename, encoding, mimetype } = await files[i];
+          const stream = createReadStream();
+          const assetUniqName = fileRenamer(filename);
+          const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+
+          const output = fs.createWriteStream(pathName)
+          stream.pipe(output);
+
+          await new Promise(function (resolve, reject) {
+            output.on('close', () => {
+              resolve();
+            });
+      
+            output.on('error', (err) => {
+              logger.error(err.toString());
+
+              reject(err);
+            });
+          });
+
+          const urlForArray = `http://localhost:4000/${assetUniqName}`;
+          url.push({ url: urlForArray });
+        }
+
+        input = {...input, payload: _.map(payload, (p, index)=>{ return {...p, src: url[index].url} })}
+        input = _.omit(input, ['files'])
+      }
+
+      /////////////////////////
+
       let result = await Message.findById(input._id);
 
       let currentUser = await User.findById(userId);
@@ -1594,8 +1791,6 @@ export default {
                   reads: []}
          
         result = await Message.create(input);
-
-        
 
         try {
           let conversation = await Conversation.findById(conversationId);
@@ -1628,8 +1823,6 @@ export default {
                 data: conversat,
               },
             });
-
-            console.log("p ::", p)
           }
         } catch (err) {
           console.log("conversation err:" , err)
@@ -1643,13 +1836,12 @@ export default {
         });
       }
 
-      
       return result;
     },
     async updateMessageRead(parent, args, context, info) {
       let { userId, conversationId } = args
 
-      console.log("updateMessageRead :", userId, conversationId)
+      // console.log("updateMessageRead :", userId, conversationId)
 
       // let currentUser = await User.findById(userId);
 
@@ -1689,8 +1881,91 @@ export default {
       }
       
       return;
-    }
+    },
 
+    // https://medium.com/geekculture/multiple-file-upload-with-apollo-server-3-react-graphql-da87880bc01d
+    async fileUpload(parent, args, context, info){
+      try{
+        let start = Date.now()
+
+        console.log("fileUpload :", args)
+
+        let {file} = args
+
+        let url = [];
+        for (let i = 0; i < file.length; i++) {
+          const { createReadStream, filename, encoding, mimetype } = await file[i];
+          const stream = createReadStream();
+          const assetUniqName = fileRenamer(filename);
+          const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+
+          const output = fs.createWriteStream(pathName)
+          stream.pipe(output);
+
+          await new Promise(function (resolve, reject) {
+            output.on('close', () => {
+              resolve();
+            });
+      
+            output.on('error', (err) => {
+              logger.error(err.toString());
+
+              reject(err);
+            });
+          });
+
+          const urlForArray = `http://localhost:4000/${assetUniqName}`;
+          url.push({ url: urlForArray });
+        }
+
+        console.log("url : ", url , `Time to execute = ${ (Date.now() - start) / 1000 } seconds`)
+
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+    
+    async createPhone(parent, args, context, info){
+      try{
+        let start = Date.now()
+
+        let { currentUser } = context
+
+        let { input } = args
+
+        console.log("input :", input, currentUser)
+
+        input = {...input, ownerId: currentUser._id}
+
+        let data = await Phone.create(input);
+        return {
+          status: true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+    async updatePhone(parent, args, context, info){
+      try{
+        let start = Date.now()
+        let { _id, input } = args
+
+        let data = await Phone.findOneAndUpdate({ _id }, input, { new: true })
+
+        return {
+          status: true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    }
   },
   Subscription:{
     numberIncremented: {
@@ -1838,12 +2113,45 @@ export default {
 
             case "CONNECTED":
             case "DISCONNECTED":{
-              console.log("CONVERSATION :::: ", mutation, data)
+              // console.log("CONVERSATION :::: ", mutation, data)
             }
           }
 
           return false;
           
+        }
+      )
+    },
+    subNotification: {
+      resolve: (payload) =>{
+        return payload.notification
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["NOTIFICATION"])
+        }, (payload, variables, context) => {
+          let {mutation, data} = payload.notification
+          
+          // let {currentUser} = context
+          // if(_.isEmpty(currentUser)){
+          //   return false;
+          // }
+
+          console.log("NOTIFICATION: ", payload, variables, data)
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       return _.findIndex(data.members, (o) => o.userId == variables.userId ) > -1
+          //     }
+
+          //   case "CONNECTED":
+          //   case "DISCONNECTED":{
+          //     // console.log("CONVERSATION :::: ", mutation, data)
+          //   }
+          // }
+
+          return data.user_to_notify === variables.userId;
         }
       )
     },
@@ -1860,7 +2168,7 @@ export default {
             
             let conversation = await Conversation.findById(variables.conversationId);
 
-            console.log("MESSAGE ::", variables, data)
+            // console.log("MESSAGE ::", variables, data)
 
             if(!_.isEmpty(conversation)){
 

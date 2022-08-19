@@ -23,6 +23,10 @@ import FollowModel from "./FollowModel"
 
 import SessionModel from "./SessionModel"
 
+import NotificationModel from "./NotificationModel"
+
+import PhoneModel from "./PhoneModel"
+
 module.exports =  {
     Bank:BankModel,
     Post:PostModel,
@@ -33,7 +37,6 @@ module.exports =  {
     Mail:MailModel,
     Bookmark:BookmarkModel,
     ContactUs:ContactUsModel,
-
 
     tContactUs:tContactUsModel,
 
@@ -48,5 +51,9 @@ module.exports =  {
 
     Follow: FollowModel,
 
-    Session: SessionModel
+    Session: SessionModel,
+
+    Notification: NotificationModel,
+
+    Phone: PhoneModel
 };

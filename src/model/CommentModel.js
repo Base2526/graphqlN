@@ -15,7 +15,7 @@ const commentSchema = new Schema({
                         comId: { type: String },
                         fullName: { type: String },
                         avatarUrl: { type: String },
-                        text: { type: String },
+                        text: { type: String }
                     }]
             }]
 },

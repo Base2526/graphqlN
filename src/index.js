@@ -1,11 +1,12 @@
 import { createServer } from "http";
 import express from "express";
 import { ApolloServer, gql } from "apollo-server-express";
-import { ApolloServerPluginDrainHttpServer } from "apollo-server-core";
+import { ApolloServerPluginDrainHttpServer, ApolloServerPluginLandingPageLocalDefault } from "apollo-server-core";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { WebSocketServer } from "ws";
 import { useServer } from "graphql-ws/lib/use/ws";
 import jwt from 'jsonwebtoken';
+
 
 import {User} from './model'
 import connection from './mongo' 
@@ -13,10 +14,17 @@ import typeDefs from "./typeDefs";
 import resolvers from "./resolvers";
 import pubsub from './pubsub'
 
+const path = require('path');
+
+const {
+    GraphQLUpload,
+    graphqlUploadExpress, // A Koa implementation is also exported.
+  } = require('graphql-upload');
+
+// const graphqlUploadExpress = require('graphql-upload/graphqlUploadExpress.js');
+
 let logger = require("./utils/logger");
 let PORT = process.env.PORT || 4000;
-
-// ping
 
 async function startApolloServer(typeDefs, resolvers) {
 
@@ -132,6 +140,7 @@ async function startApolloServer(typeDefs, resolvers) {
         schema,
         csrfPrevention: true,
         cache: "bounded",
+        uploads: false, // add this
         plugins: [
             // Proper shutdown for the HTTP server.
             ApolloServerPluginDrainHttpServer({ httpServer }),
@@ -146,10 +155,12 @@ async function startApolloServer(typeDefs, resolvers) {
                 };
                 },
             },
+
+            ApolloServerPluginLandingPageLocalDefault({ embed: true }),
         ],
 
         // subscriptions: {
-        //     path: "/subscriptions",
+        //     // path: "/subscriptions",
         //     onConnect: () => {
         //       console.log("Client connected for subscriptions");
         //     },
@@ -199,7 +210,22 @@ async function startApolloServer(typeDefs, resolvers) {
     });
   
     await server.start();
-    server.applyMiddleware({ app });
+    
+    // This middleware should be added before calling `applyMiddleware`.
+    app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 10 }));
+
+    server.applyMiddleware({ 
+        app , 
+        cors: {
+            origin: true,
+            credentials: true,
+        },
+        bodyParserConfig: {
+            limit:"50mb"
+        } 
+    });
+
+    app.use(express.static(path.join(__dirname, "./upload")));
 
     // Now that our HTTP server is fully set up, actually listen.
     httpServer.listen(PORT, () => {
