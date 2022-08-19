@@ -214,7 +214,16 @@ async function startApolloServer(typeDefs, resolvers) {
     // This middleware should be added before calling `applyMiddleware`.
     app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 10 }));
 
-    server.applyMiddleware({ app });
+    server.applyMiddleware({ 
+        app , 
+        cors: {
+            origin: true,
+            credentials: true,
+        },
+        bodyParserConfig: {
+            limit:"50mb"
+        } 
+    });
 
     app.use(express.static(path.join(__dirname, "./upload")));
 

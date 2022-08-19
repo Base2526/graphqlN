@@ -27,7 +27,9 @@ import {Bank,
         Message,
         BasicContent,
         Follow,
-        Session} from './model'
+        Session,
+        Notification,
+        Phone} from './model'
 import {emailValidate} from './utils'
 import pubsub from './pubsub'
 
@@ -889,6 +891,25 @@ export default {
       }
     },
 
+    async notifications(parent, args, context, info) {
+      try{
+        let start = Date.now()
+        let { userId } = args
+
+        let data=  await Notification.find({ user_to_notify: userId });
+
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+
     async fetchMessage(parent, args, context, info) {
       let start = Date.now()
 
@@ -921,9 +942,45 @@ export default {
       
     },
 
-    // 
-    
-    
+    async phones(parent, args, context, info) {
+      try{
+        let start = Date.now()
+
+        let {currentUser} = context
+        
+        let { page, perPage } = args
+
+        let data = await  Phone.find({ownerId: currentUser._id.toString()}).limit(perPage).skip(page); 
+        let total = (await Phone.find({ownerId: currentUser._id.toString()}).lean().exec()).length;
+
+        return {
+          status:true,
+          data,
+          total,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+    async phone(parent, args, context, info) {
+      try{
+        let start = Date.now()
+
+        let {_id} = args
+
+        let data = await Phone.findById(_id);
+        return {
+          status:true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
   },
   Upload: GraphQLUpload,
   Mutation: {
@@ -1263,20 +1320,27 @@ export default {
 
       let start = Date.now()
 
-      let result = await Comment.findOneAndUpdate({
+      // console.log("createAndUpdateComment #1 :", input )
+      // console.log("createAndUpdateComment #2 :", _.omitDeep(input, ['notify']) )
+
+      let {postId, data} = input
+
+     
+
+      let resultComment = await Comment.findOneAndUpdate({
         postId: input.postId
       }, input, {
         new: true
       })
       
-      if(result === null){
-        result = await Comment.create(input);
+      if(resultComment === null){
+        resultComment = await Comment.create(input);
 
         pubsub.publish("COMMENT", {
           comment: {
             mutation: "CREATED",
             commentID: input.postId,
-            data: result.data,
+            data: resultComment.data,
           },
         });
       }else{
@@ -1284,17 +1348,79 @@ export default {
           comment: {
             mutation: "UPDATED",
             commentID: input.postId,
-            data: result.data,
+            data: resultComment.data,
           },
         });
       }
+
+      ////////////////// send notification //////////////////
+
+      input = {...input, commentID: resultComment._id.toString()}
+
+      _.map(input.data, async(item)=>{
+        // replies  notify
+        if(item.notify){
+          // item.userId
+
+          // หาเจ้าของ โพส แล้วส่ง notify ไปหา เจ้าของโพส
+          let post = await Post.findById(postId);
+          if(post){
+            let {ownerId} = post
+
+            if(ownerId !== item.userId){
+
+              let resultNoti = await Notification.create({
+                                                        user_to_notify: ownerId,
+                                                        user_who_fired_event: item.userId,
+                                                        type: "comment",
+                                                        text: item.text,
+                                                        status: "send",
+                                                        input
+                                                      });
+
+              pubsub.publish("NOTIFICATION", {
+                notification: {
+                  mutation: "CREATED",
+                  data: resultNoti,
+                },
+              });
+            }
+          }
+        }
+
+        _.map(item.replies, async(replie)=>{
+          if(replie.notify){
+
+            console.log("#2 :", item.userId, replie.userId)
+
+            if(item.userId !== replie.userId){
+
+              let resultNoti =  await Notification.create({
+                                          user_to_notify: item.userId,
+                                          user_who_fired_event: replie.userId,
+                                          type: "comment",
+                                          text: replie.text,
+                                          status: "send",
+                                          input
+                                        });
+
+              pubsub.publish("NOTIFICATION", {
+                notification: {
+                  mutation: "CREATED",
+                  data: resultNoti,
+                },
+              });
+            }
+          }
+        })
+      })
+
+      ////////////////// send notification //////////////////
                 
       return {
         status:true,
-        data: result.data,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
+        data: resultComment.data,
+        executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
       }
     },
 
@@ -1759,18 +1885,6 @@ export default {
 
     // https://medium.com/geekculture/multiple-file-upload-with-apollo-server-3-react-graphql-da87880bc01d
     async fileUpload(parent, args, context, info){
-
-
-      /*
-            return {
-        status:true,
-        data,
-        executionTime: 
-      }
-
-      
-    },
-      */
       try{
         let start = Date.now()
 
@@ -1806,6 +1920,47 @@ export default {
 
         console.log("url : ", url , `Time to execute = ${ (Date.now() - start) / 1000 } seconds`)
 
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+    
+    async createPhone(parent, args, context, info){
+      try{
+        let start = Date.now()
+
+        let { currentUser } = context
+
+        let { input } = args
+
+        console.log("input :", input, currentUser)
+
+        input = {...input, ownerId: currentUser._id}
+
+        let data = await Phone.create(input);
+        return {
+          status: true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
+      }
+    },
+    async updatePhone(parent, args, context, info){
+      try{
+        let start = Date.now()
+        let { _id, input } = args
+
+        let data = await Phone.findOneAndUpdate({ _id }, input, { new: true })
+
+        return {
+          status: true,
+          data,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
+        }
       } catch(err) {
         logger.error(err.toString());
         return;
@@ -1964,6 +2119,39 @@ export default {
 
           return false;
           
+        }
+      )
+    },
+    subNotification: {
+      resolve: (payload) =>{
+        return payload.notification
+      },
+      subscribe: withFilter((parent, args, context, info) => {
+          return pubsub.asyncIterator(["NOTIFICATION"])
+        }, (payload, variables, context) => {
+          let {mutation, data} = payload.notification
+          
+          // let {currentUser} = context
+          // if(_.isEmpty(currentUser)){
+          //   return false;
+          // }
+
+          console.log("NOTIFICATION: ", payload, variables, data)
+          // switch(mutation){
+          //   case "CREATED":
+          //   case "UPDATED":
+          //   case "DELETED":
+          //     {
+          //       return _.findIndex(data.members, (o) => o.userId == variables.userId ) > -1
+          //     }
+
+          //   case "CONNECTED":
+          //   case "DISCONNECTED":{
+          //     // console.log("CONVERSATION :::: ", mutation, data)
+          //   }
+          // }
+
+          return data.user_to_notify === variables.userId;
         }
       )
     },

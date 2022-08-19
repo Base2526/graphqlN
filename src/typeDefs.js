@@ -478,8 +478,8 @@ export default gql`
     Dblog(page: Int, perPage: Int): DblogPayLoad
 
     conversations(userId: ID): JSON
+    notifications(userId: ID): JSON
     
-
     basicContent(_id: ID!): BasicContentPayLoad
     basicContents(page: Int, perPage: Int): BasicContentsPayLoad
 
@@ -489,6 +489,9 @@ export default gql`
 
 
     fetchMessage(conversationId: ID): JSON
+
+    phones(page: Int, perPage: Int): JSON
+    phone(_id: ID!): JSON
   }  
   
   input RoomInput {
@@ -522,6 +525,11 @@ export default gql`
   input PostBankInput {
     bankAccountName: String
     bankId: String
+  }
+
+  input PhoneInput {
+    phones: [String!]
+    description: String
   }
 
   input RoleInput {
@@ -617,6 +625,7 @@ export default gql`
     fullName: String
     avatarUrl: String
     text: String
+    notify: Boolean
     replies: [RepliesInput]
   }
 
@@ -626,6 +635,7 @@ export default gql`
     fullName: String
     avatarUrl: String
     text: String
+    notify: Boolean
   }
 
   input BookmarkInput {
@@ -696,6 +706,9 @@ export default gql`
     createAndUpdateFollow(input: FollowInput): Follow
     currentNumber: Int
 
+    createPhone(input: PhoneInput): JSON
+    updatePhone(_id: ID!, input: PhoneInput): JSON
+
     fileUpload(text: String!, file: [Upload]!): [FileX]!
   }
 
@@ -709,6 +722,7 @@ export default gql`
     subShare(postId: ID!): ShareSubscriptionPayload!
 
     subConversation(userId: ID): JSON
+    subNotification(userId: ID): JSON
     subMessage(userId: ID!, conversationId: ID!): JSON
   }
 
