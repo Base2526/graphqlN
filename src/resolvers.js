@@ -127,9 +127,13 @@ export default {
 
       let start = Date.now()
 
-      if(_.isEmpty(userId)){
+      // if(_.isEmpty(userId)){
         
-      }
+      // }
+
+      // let {currentUser} = context 
+      // currentUser._id.toString()
+      // console.log("homes :", currentUser)
 
       // console.log("Homes: page : ", page,
       //             ", perPage : ", perPage, 
@@ -235,10 +239,10 @@ export default {
     },
     async posts(parent, args, context, info) {
 
-      let {currentUser} = context
+      // let {currentUser} = context 
       
-      console.log("posts currentUser :", currentUser)
-      let { page, perPage } = args
+      // console.log("posts currentUser :", currentUser, args)
+      let { userId, page, perPage } = args
 
       let start = Date.now()
 
@@ -248,16 +252,14 @@ export default {
                     (Date.now() - start) / 1000
                   } seconds` )
 
-      let data = await  Post.find({ownerId: currentUser._id.toString()}).limit(perPage).skip(page); 
-      let total = (await Post.find({ownerId: currentUser._id.toString()}).lean().exec()).length;
+      let data = await  Post.find({ownerId: userId}).limit(perPage).skip(page); 
+      let total = (await Post.find({ownerId: userId}).lean().exec()).length;
 
       return {
         status:true,
         data,
         total,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`
+        executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`
       }
     },
     async postsByUser(root, {
@@ -946,12 +948,12 @@ export default {
       try{
         let start = Date.now()
 
-        let {currentUser} = context
+        // let {currentUser} = context
         
-        let { page, perPage } = args
+        let { userId, page, perPage } = args
 
-        let data = await  Phone.find({ownerId: currentUser._id.toString()}).limit(perPage).skip(page); 
-        let total = (await Phone.find({ownerId: currentUser._id.toString()}).lean().exec()).length;
+        let data = await  Phone.find({ownerId: userId}).limit(perPage).skip(page); 
+        let total = (await Phone.find({ownerId: userId}).lean().exec()).length;
 
         return {
           status:true,
@@ -1751,6 +1753,7 @@ export default {
           const stream = createReadStream();
           const assetUniqName = fileRenamer(filename);
           const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+          
 
           const output = fs.createWriteStream(pathName)
           stream.pipe(output);

@@ -6,8 +6,14 @@ COPY . /app
 
 # RUN rm -rf node_modules
 
+RUN npm i --save --legacy-peer-deps
+
 RUN npm install -g nodemon
 RUN npm install -g ts-node
+
+
+# RUN mkdir -p /app/src/upload
+# RUN chmod -R 777 /app/src/upload
 
 # RUN npm run build
 

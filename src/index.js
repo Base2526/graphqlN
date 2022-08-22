@@ -6,7 +6,7 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
 import { WebSocketServer } from "ws";
 import { useServer } from "graphql-ws/lib/use/ws";
 import jwt from 'jsonwebtoken';
-
+import * as fs from "fs";
 
 import {User} from './model'
 import connection from './mongo' 
@@ -80,6 +80,7 @@ async function startApolloServer(typeDefs, resolvers) {
             context: (ctx, msg, args) => {
                 // Returning an object will add that information to our
                 // GraphQL context, which all of our resolvers have access to.
+
                 return getDynamicContext(ctx, msg, args);
             },
             onConnect: async (ctx) => {
@@ -225,6 +226,7 @@ async function startApolloServer(typeDefs, resolvers) {
         } 
     });
 
+    
     app.use(express.static(path.join(__dirname, "./upload")));
 
     // Now that our HTTP server is fully set up, actually listen.

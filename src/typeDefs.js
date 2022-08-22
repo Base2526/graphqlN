@@ -425,7 +425,7 @@ export default gql`
   }
 
   type Query {
-    homes( userId:ID, page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
+    homes( userId: ID, page: Int, perPage: Int, keywordSearch: String, category: String ): PostsPayLoad
 
     user(_id: ID): UserPayLoad
     users(page: Int, perPage: Int): UsersPayLoad
@@ -447,8 +447,8 @@ export default gql`
     sockets(page: Int, perPage: Int): SocketsPayLoad
     getManySockets(_ids: [ID!]!): SocketsPayLoad
 
-    post(_id: ID!): PostPayLoad
-    posts(page: Int, perPage: Int ): PostsPayLoad
+    post( _id: ID! ): PostPayLoad
+    posts( userId: ID, page: Int, perPage: Int ): PostsPayLoad
     _allPostsMeta(page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): ListMetadata
     getManyPosts(_ids: [ID!]!): PostsPayLoad
 
@@ -490,7 +490,7 @@ export default gql`
 
     fetchMessage(conversationId: ID): JSON
 
-    phones(page: Int, perPage: Int): JSON
+    phones(userId: ID, page: Int, perPage: Int): JSON
     phone(_id: ID!): JSON
   }  
   
