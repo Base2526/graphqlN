@@ -11,11 +11,10 @@ var Comment = new Schema({
 })
 
 var File = new Schema({
-    base64: { type: String },
-    fileName: { type: String },
-    lastModified: { type: String },
-    size: { type: Number },
-    type: { type: String },
+    url: { type: String },
+    filename: { type: String },
+    mimetype: { type: String },
+    encoding: { type: String },
 })
 
 var BInput = new Schema({

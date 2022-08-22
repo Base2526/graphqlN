@@ -218,23 +218,28 @@ export default {
 
     // post
     async post(parent, args, context, info) {
+      try{
+        // if(!context.status){
+        //   // foce logout
+        // }
 
-      if(!context.status){
-        // foce logout
-      }
+        let start = Date.now()
 
-      let start = Date.now()
+        let { _id } = args
+        
+        console.log("args :", args)
 
-      let { _id } = args
-      let data = await Post.findById(_id);
+        let data = await Post.findById(_id);
 
-      // console.log("post :", data, _id)
-      return {
-        status:true,
-        executionTime: `Time to execute = ${
-          (Date.now() - start) / 1000
-        } seconds`,
-        data
+        console.log("post :", data, _id)
+        return {
+          status:true,
+          executionTime: `Time to execute = ${ (Date.now() - start) / 1000 } seconds`,
+          data
+        }
+      } catch(err) {
+        logger.error(err.toString());
+        return;
       }
     },
     async posts(parent, args, context, info) {
@@ -1094,23 +1099,86 @@ export default {
     },
     // user
 
+    /*
+    (parent, args, context, info) {
+      // let { currentUser } = context
+
+      // if(_.isEmpty(currentUser)){
+      //   return;
+      // }
+
+      console.log("addMessage : ", args)
+
+      let { userId, conversationId, input } = args
+
+
+      ///////////////////////
+      if(input.type === "image"){
+        let {payload, files} = input
+
+        let url = [];
+        for (let i = 0; i < files.length; i++) {
+    */
+
     // post
-    
-    async createPost(root, {
-      input
-    }) {
-      console.log("createPost")
+    async createPost(parent, args, context, info){
+      try{
+        let { input } = args
 
-      let post = await Post.create(input);
 
-      pubsub.publish('POST', {
-        post:{
-          mutation: 'CREATED',
-          data: post
+        let newFiles = [];
+
+        // console.log("input.files :", input.files, _.isEmpty(input.files) ? "Y" : "N")
+        if(!_.isEmpty(input.files)){
+          // console.log("createPost :", input.files)
+          
+          for (let i = 0; i < input.files.length; i++) {
+            const { createReadStream, filename, encoding, mimetype } = (await input.files[i]).file //await input.files[i];
+
+            const stream = createReadStream();
+            const assetUniqName = fileRenamer(filename);
+            const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+            
+  
+            const output = fs.createWriteStream(pathName)
+            stream.pipe(output);
+  
+            await new Promise(function (resolve, reject) {
+              output.on('close', () => {
+                resolve();
+              });
+        
+              output.on('error', (err) => {
+                logger.error(err.toString());
+  
+                reject(err);
+              });
+            });
+  
+            const urlForArray = `http://localhost:4000/${assetUniqName}`;
+            newFiles.push({ url: urlForArray, filename, encoding, mimetype });
+          }
+
+          console.log("newFiles :", newFiles)
+
         }
-      });
 
-      return post;
+        let post = await Post.create({...input, files:newFiles});
+
+        pubsub.publish('POST', {
+          post:{
+            mutation: 'CREATED',
+            data: post
+          }
+        });
+
+        return post;
+      } catch(err) {
+        logger.error(err.toString());
+
+
+        return;
+      }
     },
 
     async updatePost(root, {

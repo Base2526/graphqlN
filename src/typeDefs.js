@@ -447,8 +447,8 @@ export default gql`
     sockets(page: Int, perPage: Int): SocketsPayLoad
     getManySockets(_ids: [ID!]!): SocketsPayLoad
 
-    post( _id: ID! ): PostPayLoad
-    posts( userId: ID, page: Int, perPage: Int ): PostsPayLoad
+    post( _id: ID! ): JSON
+    posts( userId: ID, page: Int, perPage: Int ): JSON
     _allPostsMeta(page: Int, perPage: Int, sortField: String, sortOrder: String, filter: PostFilter): ListMetadata
     getManyPosts(_ids: [ID!]!): PostsPayLoad
 
@@ -516,7 +516,7 @@ export default gql`
     description: String
     banks: [PostBankInput]
     tels: [String]
-    files: [FileInput]
+    files: [JSON]
     follows: [ID]
     isPublish: Int
     ownerId: ID!
@@ -658,7 +658,7 @@ export default gql`
     updateUser(_id: ID!, input: UserInput): User
     deleteUser(_id: ID!): User
 
-    createPost(input: PostInput): Post
+    createPost(input: JSON): JSON
     updatePost(_id: ID!, input: PostInput): Post
     deletePost(_id: ID!): Post
     deletePosts(_ids: [ID!]!): deleteType
