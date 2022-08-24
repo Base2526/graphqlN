@@ -425,7 +425,7 @@ export default gql`
   }
 
   type Query {
-    homes( userId: ID, page: Int, perPage: Int, keywordSearch: String, category: String ): JSON
+    homes( userId: ID, page: Long, perPage: Long, keywordSearch: String, category: String ): JSON
 
     user(_id: ID): UserPayLoad
     users(page: Int, perPage: Int): UsersPayLoad
