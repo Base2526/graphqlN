@@ -1137,7 +1137,7 @@ export default {
 
             const stream = createReadStream();
             const assetUniqName = fileRenamer(filename);
-            const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+            const pathName = path.join(__dirname,   `../uploads/${assetUniqName}`);
             
   
             const output = fs.createWriteStream(pathName)
@@ -1820,7 +1820,7 @@ export default {
           const { createReadStream, filename, encoding, mimetype } = await files[i];
           const stream = createReadStream();
           const assetUniqName = fileRenamer(filename);
-          const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+          const pathName = path.join(__dirname,   `../uploads/${assetUniqName}`);
           
 
           const output = fs.createWriteStream(pathName)
@@ -1968,7 +1968,7 @@ export default {
           const { createReadStream, filename, encoding, mimetype } = await file[i];
           const stream = createReadStream();
           const assetUniqName = fileRenamer(filename);
-          const pathName = path.join(__dirname,   `./upload/${assetUniqName}`);
+          const pathName = path.join(__dirname,   `../uploads/${assetUniqName}`);
 
           const output = fs.createWriteStream(pathName)
           stream.pipe(output);
