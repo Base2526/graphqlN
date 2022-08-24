@@ -227,7 +227,7 @@ async function startApolloServer(typeDefs, resolvers) {
     });
 
     
-    app.use(express.static(path.join(__dirname, "./upload")));
+    app.use(express.static(path.join(__dirname, "../uploads")));
 
     // Now that our HTTP server is fully set up, actually listen.
     httpServer.listen(PORT, () => {
